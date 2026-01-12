@@ -1,0 +1,1 @@
+(ns d-core.core.consumers.in-mem-consumer)

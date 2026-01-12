@@ -83,3 +83,7 @@ Example (illustrative):
 ### Repo layout expectation
 
 - D-Core code lives under `src/d_core/**` and uses the `d-core.*` namespace prefix.
+
+### Supported vs unsupported matrix
+
+See `docs/supported.md`.

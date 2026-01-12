@@ -1,0 +1,55 @@
+# Supported vs Unsupported (D-Core)
+
+This page tracks what D-Core currently supports, what is planned, and what is explicitly out of scope.
+
+## Supported
+
+### Messaging
+
+- Routing facade (Integrant key + helpers)
+- Codecs: EDN, JSON
+- Producers: in-memory, Redis, Kafka, JetStream/NATS
+- Consumers/runtimes: in-memory, Redis Streams, Kafka, JetStream/NATS
+- Dead-letter sinks: logger, storage, producer
+
+### Cache
+
+- In-memory
+- Redis-backed
+- Common cache facade (select default via config)
+
+### Storage
+
+- Local disk
+- MinIO / S3-style backend
+- Common storage facade (select default via config)
+
+### Clients
+
+- Redis
+- Kafka
+- JetStream/NATS
+- SQLite
+- Postgres
+- Typesense
+
+### Tracing
+
+- Context helpers (`d-core.tracing`)
+- Ring middleware (`:d-core.core.tracing.http/middleware`)
+
+### Dev/test helpers
+
+- In-memory queues (`:d-core.queue/*`)
+
+## Unsupported (by design)
+
+- Business/domain logic
+- HTTP routes/controllers (app-owned)
+- App-specific handlers/workers (app-owned)
+- Opinionated schemas/validation for your domain payloads
+
+## Planned / TBD
+
+- Split artifacts per backend (keep as single lib for now; consider later)
+- More formal compatibility guarantees and versioning policy

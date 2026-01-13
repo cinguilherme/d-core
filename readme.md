@@ -6,6 +6,12 @@ D-core is a **Duct/Integrant battery pack**: a collection of reusable components
 
 It is intentionally **coupled to Integrant and Duct**. The “API surface” is primarily **Integrant init-keys** and a small set of supporting namespaces/protocols.
 
+## Major Rules of D-Core Abstractions
+
+ - Every component needs to adher to a common protocol for the given abstraction (e.g. `CacheProtocol`, `StorageProtocol`, `MessagingProtocol`, etc.) this can be interpreted as a Facade pattern, but the Protocols have 2 things that are important:
+ -- They are generic in the sense that they don't recieve even specific objects, always a clojure primitive, or a map of primitives, or a list of primitives, etc.
+ -- They take a opts last arument to allow for speficic that are specific to a particular implementation, such as in MessagingProtocol, the last argument is where you can find a Kafka specificitites, or a Redis specificities, etc.
+
 ### What it provides
 
 - **Integrant components** for common app infrastructure:
@@ -87,3 +93,7 @@ Example (illustrative):
 ### Supported vs unsupported matrix
 
 See `docs/supported.md`.
+
+### Dead letters
+
+See `docs/dead_letters.md`.

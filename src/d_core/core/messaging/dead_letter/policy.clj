@@ -10,7 +10,8 @@
   The effective per-topic configuration is expected to be present on the envelope at:
   - `[:metadata :dlq :deadletter]`
   (populated by consumer runtimes)."
-  (:require [integrant.core :as ig]))
+  (:require [integrant.core :as ig]
+            [d-core.core.messaging.dead-letter.defaults :as defaults]))
 
 (defprotocol DeadLetterPolicy
   (classify [this envelope error-info opts]
@@ -39,7 +40,7 @@
           meta (dlq-meta envelope)
           ;; attempt is maintained by the replay controller; on first failure it is 0.
           attempt (long (or (:attempt meta) 0))
-          max-attempts (long (or (:max-attempts cfg) 3))
+          max-attempts (long (or (:max-attempts cfg) defaults/*default-max-attempts*))
           delay-ms (long (or (:delay-ms cfg) 0))
           ;; sink can be controlled per topic; opts can override (e.g. manual forcing).
           sink (or (:sink opts) (:sink cfg))

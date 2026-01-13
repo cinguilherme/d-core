@@ -6,6 +6,7 @@
             [d-core.core.messaging.routing :as routing]
             [d-core.core.messaging.dead-letter.metadata :as dlmeta]
             [d-core.core.messaging.dead-letter.policy :as policy]
+            [d-core.core.messaging.dead-letter.defaults :as defaults]
             [d-core.core.messaging.dead-letter.admin.protocol :as dl-admin])
   (:import (java.util UUID)
            (java.util.concurrent TimeUnit)))
@@ -106,7 +107,11 @@
                            (:delay-ms decision) (assoc-in [:metadata :dlq :delay-ms] (:delay-ms decision))
                            true (assoc-in [:metadata :dlq :status] status))
                 attempt (long (get-in original [:metadata :dlq :attempt] 0))
-                max-attempts (effective-max-attempts original 3)]
+                max-attempts (effective-max-attempts original defaults/*default-max-attempts*)
+                delay-ms (long (or (get-in original [:metadata :dlq :deadletter :delay-ms])
+                                   (get-in original [:metadata :dlq :delay-ms])
+                                   0))
+                delay-ms (max 0 delay-ms)]
             (try
               (if (not= status :eligible)
                 (do
@@ -117,6 +122,8 @@
                   (car/wcar conn (car/xack stream group id)))
                 (let [target-stream (topic->stream routing topic)
                       payload (codec/encode codec original)]
+                  (when (and (= defaults/*default-replay-mode* :sleep) (pos? delay-ms))
+                    (Thread/sleep delay-ms))
                   (car/wcar conn (car/xadd target-stream "*" "payload" payload))
                   (logger/log logger :info ::dlq-replayed {:topic topic :dlq-id dlq-id :stream target-stream :attempt attempt})
                   (car/wcar conn (car/xack stream group id))))

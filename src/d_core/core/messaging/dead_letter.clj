@@ -22,6 +22,7 @@
   (:require [d-core.core.messaging.dead-letter.protocol :as protocol]
             [d-core.core.messaging.dead-letter.policy]
             [d-core.core.messaging.dead-letter.metadata]
+            [d-core.core.messaging.dead-letter.defaults]
             [d-core.core.messaging.dead-letter.destination]
             ;; Side-effect requires: register Integrant `init-key` methods.
             [d-core.core.messaging.dead-letter.sinks.logger]

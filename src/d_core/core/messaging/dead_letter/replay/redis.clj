@@ -5,7 +5,8 @@
             [d-core.core.messaging.codec :as codec]
             [d-core.core.messaging.routing :as routing]
             [d-core.core.messaging.dead-letter.metadata :as dlmeta]
-            [d-core.core.messaging.dead-letter.policy :as policy])
+            [d-core.core.messaging.dead-letter.policy :as policy]
+            [d-core.core.messaging.dead-letter.admin.protocol :as dl-admin])
   (:import (java.util UUID)
            (java.util.concurrent TimeUnit)))
 
@@ -22,6 +23,27 @@
   (let [cfg (routing/topic-config routing topic)]
     (or (:stream cfg)
         (str "core:" (name topic)))))
+
+(defn- dlq-stream
+  [routing topic]
+  (let [base (topic->stream routing topic)
+        dl-cfg (routing/deadletter-config routing topic)
+        suffix (or (:suffix dl-cfg) ".dl")]
+    (str base suffix)))
+
+(defn- redis-topics
+  "Topics in routing that should have redis DLQ streams monitored."
+  [routing]
+  (let [topics (keys (get routing :topics {}))
+        subs (->> (get routing :subscriptions {})
+                  vals
+                  (map :topic)
+                  (remove nil?))]
+    (->> (concat topics subs)
+         (map #(or % :default))
+         distinct
+         (filter (fn [t] (= :redis (routing/source-for-topic routing t))))
+         vec)))
 
 (defn- decode-dlq-entry
   "Given a redis stream entry fields map, decode envelope (expects field \"payload\")."
@@ -48,95 +70,88 @@
             default-max)))
 
 (defn- replay-once!
-  [{:keys [conn routing codec policy logger retry-stream stuck-stream poison-stream manual-stream]
-    :or {stuck-stream "dlq:stuck"
-         poison-stream "dlq:poison"
-         manual-stream "dlq:manual"}}]
-  (let [resp (car/wcar conn
-               (car/xreadgroup "GROUP" (:group retry-stream) (:consumer retry-stream)
-                               "BLOCK" (str (:block-ms retry-stream))
-                               "COUNT" (str (:count retry-stream))
-                               "STREAMS" (:stream retry-stream) ">"))]
-    ;; resp shape: [[stream [[id [field value ...]] ...]]]
-    (doseq [[_stream entries] resp
-            [id fields] entries]
-      (let [m (apply hash-map fields)
-            {:keys [envelope]} (decode-dlq-entry codec m)
-            original (extract-original-envelope envelope)
-            topic (or (get-in original [:metadata :dlq :topic]) :default)
-            dl-cfg (routing/deadletter-config routing topic)
-            original (dlmeta/enrich-for-deadletter original
-                                                  {:topic topic
-                                                   :runtime :redis-replay
-                                                   :source {:retry-stream (:stream retry-stream)
-                                                            :redis-id id}
-                                                   :deadletter dl-cfg})
-            original (inc-attempt original)
-            decision (when policy (policy/classify policy original {:error :replay} {}))
-            status (or (:status decision) (get-in original [:metadata :dlq :status]) :eligible)
-            original (cond-> original
-                       (:max-attempts decision) (assoc-in [:metadata :dlq :max-attempts] (:max-attempts decision))
-                       (:delay-ms decision) (assoc-in [:metadata :dlq :delay-ms] (:delay-ms decision))
-                       true (assoc-in [:metadata :dlq :status] status))
-            attempt (long (get-in original [:metadata :dlq :attempt] 0))
-            max-attempts (effective-max-attempts original 3)
-            dest-stream (case status
-                          :poison poison-stream
-                          :manual manual-stream
-                          :stuck stuck-stream
-                          nil)]
-        (try
-          (if (not= status :eligible)
-            (let [payload (codec/encode codec original)]
-              (car/wcar conn (car/xadd dest-stream "*" "payload" payload))
-              (logger/log logger :warn ::dlq-diverted
-                          {:topic topic
-                           :status status
-                           :attempt attempt
-                           :max-attempts max-attempts
-                           :stream dest-stream})
-              (car/wcar conn (car/xack (:stream retry-stream) (:group retry-stream) id)))
-            (let [target-stream (topic->stream routing topic)
-                  payload (codec/encode codec original)]
-              (car/wcar conn (car/xadd target-stream "*" "payload" payload))
-              (logger/log logger :info ::dlq-replayed {:topic topic :stream target-stream :attempt attempt})
-              (car/wcar conn (car/xack (:stream retry-stream) (:group retry-stream) id))))
-          (catch Exception e
-            (logger/log logger :error ::dlq-replay-failed {:topic topic :redis-id id :error (.getMessage e)})))))))
+  [{:keys [conn routing codec policy admin logger group consumer block-ms count]}]
+  (let [topics (redis-topics routing)
+        streams (mapv #(dlq-stream routing %) topics)
+        _ (doseq [s streams] (ensure-consumer-group! conn s group))]
+    ;; NOTE: Carmine's command macros (e.g. xreadgroup) are not reliably invokable via `apply`.
+    ;; To stay safe, read one stream at a time.
+    (doseq [dlq-stream streams]
+      (let [resp (car/wcar conn
+                   (car/xreadgroup "GROUP" group consumer
+                                   "BLOCK" (str block-ms)
+                                   "COUNT" (str count)
+                                   "STREAMS" dlq-stream ">"))]
+        ;; resp shape: [[stream [[id [field value ...]] ...]]]
+        (doseq [[stream entries] resp
+                [id fields] entries]
+          (let [m (apply hash-map fields)
+                {:keys [envelope]} (decode-dlq-entry codec m)
+                dlq-id (or (get-in envelope [:msg :dlq-id])
+                           (get-in envelope [:metadata :dlq :id]))
+                original (extract-original-envelope envelope)
+                topic (or (get-in original [:metadata :dlq :topic]) :default)
+                dl-cfg (routing/deadletter-config routing topic)
+                original (dlmeta/enrich-for-deadletter original
+                                                      {:topic topic
+                                                       :runtime :redis-replay
+                                                       :source {:dlq-stream stream
+                                                                :redis-id id}
+                                                       :deadletter dl-cfg})
+                original (inc-attempt original)
+                decision (when policy (policy/classify policy original {:error :replay} {}))
+                status (or (:status decision) (get-in original [:metadata :dlq :status]) :eligible)
+                original (cond-> original
+                           (:max-attempts decision) (assoc-in [:metadata :dlq :max-attempts] (:max-attempts decision))
+                           (:delay-ms decision) (assoc-in [:metadata :dlq :delay-ms] (:delay-ms decision))
+                           true (assoc-in [:metadata :dlq :status] status))
+                attempt (long (get-in original [:metadata :dlq :attempt] 0))
+                max-attempts (effective-max-attempts original 3)]
+            (try
+              (if (not= status :eligible)
+                (do
+                  (when (and admin dlq-id)
+                    (dl-admin/mark-deadletter! admin dlq-id status {}))
+                  (logger/log logger :warn ::dlq-not-replaying
+                              {:topic topic :dlq-id dlq-id :status status :attempt attempt :max-attempts max-attempts})
+                  (car/wcar conn (car/xack stream group id)))
+                (let [target-stream (topic->stream routing topic)
+                      payload (codec/encode codec original)]
+                  (car/wcar conn (car/xadd target-stream "*" "payload" payload))
+                  (logger/log logger :info ::dlq-replayed {:topic topic :dlq-id dlq-id :stream target-stream :attempt attempt})
+                  (car/wcar conn (car/xack stream group id))))
+              (catch Exception e
+                (logger/log logger :error ::dlq-replay-failed {:topic topic :dlq-id dlq-id :redis-id id :error (.getMessage e)})))))))))
 
 (defmethod ig/init-key :d-core.core.messaging.dead-letter.replay/redis
   [_ {:keys [redis routing codec policy logger
-             retry-stream stuck-stream poison-stream manual-stream poll-interval-ms]
-      :or {retry-stream {:stream "dlq:retry"
-                         :group "dlq"
-                         :consumer (str "dlq-replay-" (UUID/randomUUID))
-                         :block-ms 1000
-                         :count 10}
-           stuck-stream "dlq:stuck"
-           poison-stream "dlq:poison"
-           manual-stream "dlq:manual"
+             admin group consumer block-ms count poll-interval-ms]
+      :or {group "dlq"
+           consumer (str "dlq-replay-" (UUID/randomUUID))
+           block-ms 1000
+           count 10
            poll-interval-ms 250}}]
   (let [stop? (atom false)
         conn (:conn redis)
         ;; if policy not provided, default policy still works (no Integrant wiring required).
         policy (or policy (policy/->DefaultPolicy))]
-    (ensure-consumer-group! conn (:stream retry-stream) (:group retry-stream))
     {:stop? stop?
      :thread
      (future
-       (logger/log logger :report ::dlq-replay-started {:retry-stream (:stream retry-stream)})
+       (logger/log logger :report ::dlq-replay-started {:group group})
        (while (not @stop?)
          (replay-once! {:conn conn
                         :routing routing
                         :codec codec
                         :policy policy
+                        :admin admin
                         :logger logger
-                        :retry-stream retry-stream
-                        :stuck-stream stuck-stream
-                        :poison-stream poison-stream
-                        :manual-stream manual-stream})
+                        :group group
+                        :consumer consumer
+                        :block-ms block-ms
+                        :count count})
          (.sleep TimeUnit/MILLISECONDS (long poll-interval-ms)))
-       (logger/log logger :report ::dlq-replay-stopped {:retry-stream (:stream retry-stream)}))}))
+       (logger/log logger :report ::dlq-replay-stopped {:group group}))}))
 
 (defmethod ig/halt-key! :d-core.core.messaging.dead-letter.replay/redis
   [_ {:keys [stop? thread]}]

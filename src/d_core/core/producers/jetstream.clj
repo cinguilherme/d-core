@@ -42,8 +42,8 @@
     (let [options (or options {})
           topic (or (:topic options) :default)
           trace (:trace options)
-          subject (topic->subject routing topic)
-          stream (topic->stream routing topic)
+          subject (or (:subject options) (topic->subject routing topic))
+          stream (or (:stream options) (topic->stream routing topic))
           envelope {:msg msg-map
                     :options options
                     :metadata (cond-> {}

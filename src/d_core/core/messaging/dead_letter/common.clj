@@ -7,12 +7,11 @@
 
 (defn- assoc-dlq-policy
   "Attach policy decisions onto the envelope DLQ metadata so sinks can persist it."
-  [envelope {:keys [status max-attempts delay-ms dlq-topic]}]
+  [envelope {:keys [status max-attempts delay-ms]}]
   (cond-> envelope
     status (assoc-in [:metadata :dlq :status] status)
     max-attempts (assoc-in [:metadata :dlq :max-attempts] max-attempts)
-    delay-ms (assoc-in [:metadata :dlq :delay-ms] delay-ms)
-    dlq-topic (assoc-in [:metadata :dlq :dlq-topic] dlq-topic)))
+    delay-ms (assoc-in [:metadata :dlq :delay-ms] delay-ms)))
 
 (defn- compute-default-sink
   [sinks]
@@ -38,8 +37,6 @@
         (do
           (logger/log logger :info ::sending-to-dlq {:sink sink-key})
           (let [opts (cond-> opts
-                       ;; policy can choose a per-status dlq-topic for producer-like sinks
-                       (:dlq-topic decision) (assoc :dlq-topic (:dlq-topic decision))
                        (:delay-ms decision) (assoc :delay-ms (:delay-ms decision)))
                 res (dl/send-dead-letter! delegate envelope error-info opts)]
             (if (and (not (:ok res)) (= sink-key :producer))

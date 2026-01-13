@@ -22,9 +22,7 @@
 
     May return:
     - `:max-attempts` int
-    - `:delay-ms` int
-    - `:dlq-topic` keyword (for producer sink)
-    - `:dlq-topics` map keyword->keyword (e.g. {:retry :dlq-retry ...})"))
+    - `:delay-ms` int"))
 
 (defn- dlq-meta
   [envelope]
@@ -46,28 +44,14 @@
           ;; sink can be controlled per topic; opts can override (e.g. manual forcing).
           sink (or (:sink opts) (:sink cfg))
           sink (or sink :hybrid)
-          ;; destination topics are per status; defaults work without extra routing.
-          topics (merge {:retry :dlq-retry
-                         :stuck :dlq-stuck
-                         :poison :dlq-poison
-                         :manual :dlq-manual}
-                        (:dlq-topics cfg))
           status0 (or (:status cfg) (:status meta) :eligible)
           status (if (and (= status0 :eligible) (>= attempt max-attempts))
                    :stuck
-                   status0)
-          dlq-topic (case status
-                      :poison (:poison topics)
-                      :manual (:manual topics)
-                      :stuck (:stuck topics)
-                      ;; eligible/default
-                      (:retry topics))]
+                   status0)]
       {:status status
        :sink sink
        :max-attempts max-attempts
-       :delay-ms delay-ms
-       :dlq-topic dlq-topic
-       :dlq-topics topics})))
+       :delay-ms delay-ms})))
 
 (defmethod ig/init-key :d-core.core.messaging.dead-letter.policy/default
   [_ _cfg]

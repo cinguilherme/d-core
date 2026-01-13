@@ -14,7 +14,8 @@
           topic (or (:topic options) :default)
           trace (:trace options)
           topic-cfg (routing/topic-config routing topic)
-          stream (or (:stream topic-cfg)
+          stream (or (:stream options)
+                     (:stream topic-cfg)
                      (str "core:" (name topic)))
           envelope {:msg msg-map
                     :options options

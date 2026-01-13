@@ -4,7 +4,7 @@ The libs are either pure functions or macros that allow for abstractions to be w
 
 ### Retriable
 
-Retriable is a macro, its meant to be used as a evolution of a try catch block but with configurations to allow for:
+Retriable is a macro, it's meant to be used as a evolution of a try catch block but with configurations to allow for:
 - Retriable errors to be retried
 - Maximum number of attempts to be retried
 - Backoff strategy to be used

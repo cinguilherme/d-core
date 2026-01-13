@@ -32,5 +32,11 @@
         
         ;; Kafka dependencies
         org.apache.kafka/kafka-clients {:mvn/version "3.6.1"}
-;;
-}}
+}
+
+ :aliases
+ {:test
+  {:extra-paths ["test"]
+   :extra-deps {io.github.cognitect-labs/test-runner {:git/tag "v0.5.1"
+                                                      :git/sha "dfb30dd"}}
+   :main-opts ["-m" "cognitect.test-runner"]}}}

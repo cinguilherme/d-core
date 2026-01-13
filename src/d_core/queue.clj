@@ -11,25 +11,32 @@
 
 (defmethod ig/init-key :d-core.queue/in-memory-queues
   [_ {:keys [topics] :or {topics []}}]
-  {:topics->queue (into {}
-                        (map (fn [topic]
-                               [topic (atom clojure.lang.PersistentQueue/EMPTY)]))
-                        topics)})
+  ;; Store the topic->queue map inside an atom so we can lazily create new queues
+  ;; (e.g. derived dead-letter topics like :orders.dl) without extra configuration.
+  {:topics->queue (atom (into {}
+                              (map (fn [topic]
+                                     [topic (atom clojure.lang.PersistentQueue/EMPTY)]))
+                              topics))})
 
 (defn known-topics
   [queues]
-  (set (keys (:topics->queue queues))))
+  (set (keys @(:topics->queue queues))))
 
 (defn get-queue
   [queues topic]
-  (get-in queues [:topics->queue topic]))
+  (get @(:topics->queue queues) topic))
+
+(defn get-or-create-queue!
+  "Returns the queue atom for `topic`, creating it if missing."
+  [queues topic]
+  (or (get-queue queues topic)
+      (let [q (atom clojure.lang.PersistentQueue/EMPTY)]
+        (get (swap! (:topics->queue queues) #(if (contains? % topic) % (assoc % topic q)))
+             topic))))
 
 (defn get-queue!
   [queues topic]
-  (or (get-queue queues topic)
-      (throw (ex-info "Unknown topic queue"
-                      {:topic topic
-                       :known-topics (sort (known-topics queues))}))))
+  (get-or-create-queue! queues topic))
 
 (defn enqueue!
   [queue item]

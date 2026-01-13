@@ -4,6 +4,7 @@
             [d-core.core.clients.kafka.client :as kc]
             [d-core.core.messaging.codec :as codec]
             [d-core.core.messaging.routing :as routing]
+            [d-core.core.messaging.dead-letter.metadata :as dlmeta]
             [d-core.core.messaging.dead-letter :as dl]))
 
 (defn- topic->kafka-topic
@@ -38,7 +39,8 @@
         (while (not @stop?)
           (let [records (kc/poll! consumer {:timeout-ms poll-ms})]
             (doseq [r records]
-              (let [envelope (codec/decode codec (:value r))]
+              (let [raw (:value r)
+                    envelope (codec/decode codec raw)]
                 (try
                   (handler envelope)
                   (kc/commit! consumer)
@@ -49,7 +51,20 @@
                                  :kafka-topic kafka-topic
                                  :error (.getMessage e)})
                     (if dead-letter
-                      (let [dl-res (dl/send-dead-letter! dead-letter envelope
+                      (let [dl-cfg (routing/deadletter-config routing topic)
+                            envelope (dlmeta/enrich-for-deadletter
+                                       envelope
+                                       {:topic topic
+                                        :subscription-id subscription-id
+                                        :runtime :kafka
+                                        :source {:kafka-topic kafka-topic
+                                                 :group-id group-id
+                                                 :partition (:partition r)
+                                                 :offset (:offset r)
+                                                 :timestamp (:timestamp r)}
+                                        :deadletter dl-cfg
+                                        :raw-payload raw})
+                            dl-res (dl/send-dead-letter! dead-letter envelope
                                                          {:error (.getMessage e)
                                                           :stacktrace (with-out-str (.printStackTrace e))}
                                                          {})]

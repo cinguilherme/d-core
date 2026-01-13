@@ -1,30 +1,10 @@
 (ns d-core.core.consumers.kafka-test
   (:require [clojure.test :refer [deftest is testing]]
+            [d-core.helpers.codec :as h-codec]
+            [d-core.helpers.logger :as h-logger]
             [d-core.core.consumers.kafka :as kafka]
-            [d-core.core.messaging.codec :as codec]
             [d-core.core.clients.kafka.client :as kc]
-            [d-core.core.messaging.dead-letter :as dl]
-            [duct.logger :as logger]))
-
-;; Test fixtures and helpers
-
-(defn- make-test-codec
-  "Returns a codec that can be configured to succeed or fail decode."
-  [decode-fn]
-  (reify codec/Codec
-    (decode [_ payload]
-      (decode-fn payload))
-    (encode [_ value]
-      (.getBytes (pr-str value) "UTF-8"))))
-
-(defn- make-test-logger
-  "Returns a logger that records all log calls and the atom of logs."
-  []
-  (let [logs (atom [])]
-    {:logger (reify logger/Logger
-               (-log [_ level ns-str file line id event data]
-                 (swap! logs conj {:level level :event event :data data})))
-     :logs logs}))
+            [d-core.core.messaging.dead-letter :as dl]))
 
 (defn- make-test-record
   "Creates a minimal Kafka record map for testing."
@@ -40,10 +20,10 @@
 (defn- make-test-ctx
   "Creates a minimal context map for process-record! testing."
   [& {:keys [codec handler subscription-schema logger dead-letter routing]
-      :or {codec (make-test-codec (fn [_] {:msg "test"}))
+      :or {codec (h-codec/make-test-codec (fn [_] {:msg "test"}))
            handler identity
            subscription-schema nil
-           logger (:logger (make-test-logger))  ; Default no-op logger
+           logger (:logger (h-logger/make-test-logger))  ; Default test logger
            dead-letter nil
            routing {:topics {:test {}}
                     :defaults {}}}}]
@@ -65,9 +45,9 @@
   (testing "Successful decode, validation, and handler execution commits offset"
     (let [handler-calls (atom [])
           commit-calls (atom [])
-          test-logger (make-test-logger)
+          test-logger (h-logger/make-test-logger)
           ctx (make-test-ctx
-                :codec (make-test-codec (fn [_] {:msg {:data "test"}}))
+                :codec (h-codec/make-test-codec (fn [_] {:msg {:data "test"}}))
                 :handler (fn [envelope]
                            (swap! handler-calls conj envelope)
                            :ok)
@@ -85,24 +65,24 @@
 
 (deftest process-record-codec-decode-failure
   (testing "Codec decode failure triggers poison handling with :codec-decode-failed"
-    (let [test-logger (make-test-logger)
+    (let [test-logger (h-logger/make-test-logger)
           logs (:logs test-logger)
           commit-calls (atom [])
           dl-calls (atom [])
           handler-calls (atom [])
           ctx (make-test-ctx
-                :codec (make-test-codec
-                         (fn [_] (throw (ex-info "Bad codec" {:type :codec-error}))))
-                :handler (fn [envelope]
-                           (swap! handler-calls conj envelope)
-                           :ok)
-                :logger (:logger test-logger)
-                :dead-letter (reify dl/DeadLetterProtocol
-                               (send-dead-letter! [_ envelope error-info opts]
-                                 (swap! dl-calls conj {:envelope envelope
-                                                       :error-info error-info
-                                                       :opts opts})
-                                 {:ok true})))
+               :codec (h-codec/make-test-codec
+                       (fn [_] (throw (ex-info "Bad codec" {:type :codec-error}))))
+               :handler (fn [envelope]
+                          (swap! handler-calls conj envelope)
+                          :ok)
+               :logger (:logger test-logger)
+               :dead-letter (reify dl/DeadLetterProtocol
+                              (send-dead-letter! [_ envelope error-info opts]
+                                (swap! dl-calls conj {:envelope envelope
+                                                      :error-info error-info
+                                                      :opts opts})
+                                {:ok true})))
           consumer :fake-consumer
           record (make-test-record (.getBytes "bad-payload" "UTF-8"))]
       (with-redefs [kc/commit! (fn [c]
@@ -124,25 +104,25 @@
 
 (deftest process-record-schema-validation-failure
   (testing "Schema validation failure triggers poison handling with :schema-invalid"
-    (let [test-logger (make-test-logger)
+    (let [test-logger (h-logger/make-test-logger)
           logs (:logs test-logger)
           commit-calls (atom [])
           dl-calls (atom [])
           handler-calls (atom [])
           ctx (make-test-ctx
-                :codec (make-test-codec (fn [_] {:msg {:data "test"}}))
-                :handler (fn [envelope]
-                           (swap! handler-calls conj envelope)
-                           :ok)
-                :subscription-schema {:schema [:map {:closed true} [:required-field :int]]
+               :codec (h-codec/make-test-codec (fn [_] {:msg {:data "test"}}))
+               :handler (fn [envelope]
+                          (swap! handler-calls conj envelope)
+                          :ok)
+               :subscription-schema {:schema [:map {:closed true} [:required-field :int]]
                                      :strictness :strict}
-                :logger (:logger test-logger)
-                :dead-letter (reify dl/DeadLetterProtocol
-                               (send-dead-letter! [_ envelope error-info opts]
-                                 (swap! dl-calls conj {:envelope envelope
-                                                       :error-info error-info
-                                                       :opts opts})
-                                 {:ok true})))
+               :logger (:logger test-logger)
+               :dead-letter (reify dl/DeadLetterProtocol
+                              (send-dead-letter! [_ envelope error-info opts]
+                                (swap! dl-calls conj {:envelope envelope
+                                                      :error-info error-info
+                                                      :opts opts})
+                                {:ok true})))
           consumer :fake-consumer
           record (make-test-record (.getBytes "test-payload" "UTF-8"))]
       (with-redefs [kc/commit! (fn [c]
@@ -164,21 +144,21 @@
 
 (deftest process-record-handler-failure-with-dlq
   (testing "Handler failure with DLQ configured sends to dead-letter and commits"
-    (let [test-logger (make-test-logger)
+    (let [test-logger (h-logger/make-test-logger)
           logs (:logs test-logger)
           commit-calls (atom [])
           dl-calls (atom [])
           ctx (make-test-ctx
-                :codec (make-test-codec (fn [_] {:msg {:data "test"}}))
-                :handler (fn [_envelope]
-                           (throw (ex-info "Handler failed" {:type :handler-error})))
-                :logger (:logger test-logger)
-                :dead-letter (reify dl/DeadLetterProtocol
-                               (send-dead-letter! [_ envelope error-info opts]
-                                 (swap! dl-calls conj {:envelope envelope
-                                                       :error-info error-info
-                                                       :opts opts})
-                                 {:ok true})))
+               :codec (h-codec/make-test-codec (fn [_] {:msg {:data "test"}}))
+               :handler (fn [_envelope]
+                          (throw (ex-info "Handler failed" {:type :handler-error})))
+               :logger (:logger test-logger)
+               :dead-letter (reify dl/DeadLetterProtocol
+                              (send-dead-letter! [_ envelope error-info opts]
+                                (swap! dl-calls conj {:envelope envelope
+                                                      :error-info error-info
+                                                      :opts opts})
+                                {:ok true})))
           consumer :fake-consumer
           record (make-test-record (.getBytes "test-payload" "UTF-8"))]
       (with-redefs [kc/commit! (fn [c]
@@ -200,21 +180,21 @@
 
 (deftest process-record-handler-failure-dlq-send-fails
   (testing "Handler failure where DLQ send fails does NOT commit"
-    (let [test-logger (make-test-logger)
+    (let [test-logger (h-logger/make-test-logger)
           logs (:logs test-logger)
           commit-calls (atom [])
           dl-calls (atom [])
           ctx (make-test-ctx
-                :codec (make-test-codec (fn [_] {:msg {:data "test"}}))
-                :handler (fn [_envelope]
-                           (throw (ex-info "Handler failed" {:type :handler-error})))
-                :logger (:logger test-logger)
-                :dead-letter (reify dl/DeadLetterProtocol
-                               (send-dead-letter! [_ envelope error-info opts]
-                                 (swap! dl-calls conj {:envelope envelope
-                                                       :error-info error-info
-                                                       :opts opts})
-                                 {:ok false :error "DLQ write failed"})))
+               :codec (h-codec/make-test-codec (fn [_] {:msg {:data "test"}}))
+               :handler (fn [_envelope]
+                          (throw (ex-info "Handler failed" {:type :handler-error})))
+               :logger (:logger test-logger)
+               :dead-letter (reify dl/DeadLetterProtocol
+                              (send-dead-letter! [_ envelope error-info opts]
+                                (swap! dl-calls conj {:envelope envelope
+                                                      :error-info error-info
+                                                      :opts opts})
+                                {:ok false :error "DLQ write failed"})))
           consumer :fake-consumer
           record (make-test-record (.getBytes "test-payload" "UTF-8"))]
       (with-redefs [kc/commit! (fn [c]
@@ -230,15 +210,15 @@
 
 (deftest process-record-handler-failure-no-dlq
   (testing "Handler failure without DLQ configured logs warning and does NOT commit"
-    (let [test-logger (make-test-logger)
+    (let [test-logger (h-logger/make-test-logger)
           logs (:logs test-logger)
           commit-calls (atom [])
           ctx (make-test-ctx
-                :codec (make-test-codec (fn [_] {:msg {:data "test"}}))
-                :handler (fn [_envelope]
-                           (throw (ex-info "Handler failed" {:type :handler-error})))
-                :logger (:logger test-logger)
-                :dead-letter nil)  ; No DLQ configured
+               :codec (h-codec/make-test-codec (fn [_] {:msg {:data "test"}}))
+               :handler (fn [_envelope]
+                          (throw (ex-info "Handler failed" {:type :handler-error})))
+               :logger (:logger test-logger)
+               :dead-letter nil)  ; No DLQ configured
           consumer :fake-consumer
           record (make-test-record (.getBytes "test-payload" "UTF-8"))]
       (with-redefs [kc/commit! (fn [c]
@@ -252,15 +232,15 @@
 
 (deftest process-record-poison-without-dlq
   (testing "Poison messages without DLQ still commit offset to skip them"
-    (let [test-logger (make-test-logger)
+    (let [test-logger (h-logger/make-test-logger)
           logs (:logs test-logger)
           commit-calls (atom [])
           ctx (make-test-ctx
-                :codec (make-test-codec
-                         (fn [_] (throw (ex-info "Bad codec" {:type :codec-error}))))
-                :handler (fn [_] :ok)
-                :logger (:logger test-logger)
-                :dead-letter nil)  ; No DLQ configured
+               :codec (h-codec/make-test-codec
+                       (fn [_] (throw (ex-info "Bad codec" {:type :codec-error}))))
+               :handler (fn [_] :ok)
+               :logger (:logger test-logger)
+               :dead-letter nil)  ; No DLQ configured
           consumer :fake-consumer
           record (make-test-record (.getBytes "bad-payload" "UTF-8"))]
       (with-redefs [kc/commit! (fn [c]
@@ -274,19 +254,19 @@
 
 (deftest process-record-envelope-enrichment
   (testing "Dead-letter envelopes include Kafka-specific metadata"
-    (let [test-logger (make-test-logger)
+    (let [test-logger (h-logger/make-test-logger)
           dl-calls (atom [])
           ctx (make-test-ctx
-                :codec (make-test-codec
-                         (fn [_] (throw (ex-info "Bad codec" {:type :codec-error}))))
-                :handler (fn [_] :ok)
-                :logger (:logger test-logger)
-                :dead-letter (reify dl/DeadLetterProtocol
-                               (send-dead-letter! [_ envelope error-info opts]
-                                 (swap! dl-calls conj {:envelope envelope
-                                                       :error-info error-info
-                                                       :opts opts})
-                                 {:ok true})))
+               :codec (h-codec/make-test-codec
+                       (fn [_] (throw (ex-info "Bad codec" {:type :codec-error}))))
+               :handler (fn [_] :ok)
+               :logger (:logger test-logger)
+               :dead-letter (reify dl/DeadLetterProtocol
+                              (send-dead-letter! [_ envelope error-info opts]
+                                (swap! dl-calls conj {:envelope envelope
+                                                      :error-info error-info
+                                                      :opts opts})
+                                {:ok true})))
           consumer :fake-consumer
           record (make-test-record (.getBytes "test-payload" "UTF-8"))]
       (with-redefs [kc/commit! (fn [_] {:ok true})]
@@ -309,36 +289,36 @@
 
 (deftest process-record-unexpected-exception
   (testing "Unexpected exceptions in process-record! are logged but don't crash the loop"
-    (let [test-logger (make-test-logger)
+    (let [test-logger (h-logger/make-test-logger)
           logs (:logs test-logger)
           ctx (make-test-ctx
-                :codec (make-test-codec (fn [_] {:msg {:data "test"}}))
-                :handler (fn [_envelope]
-                           ;; Throw an exception that's NOT caught by the normal paths
-                           (throw (IllegalStateException. "Unexpected error")))
-                :logger (:logger test-logger)
-                :dead-letter nil)
+               :codec (h-codec/make-test-codec (fn [_] {:msg {:data "test"}}))
+               :handler (fn [_envelope]
+                          ;; Throw an exception that's NOT caught by the normal paths
+                          (throw (IllegalStateException. "Unexpected error")))
+               :logger (:logger test-logger)
+               :dead-letter nil)
           consumer :fake-consumer
           record (make-test-record (.getBytes "test-payload" "UTF-8"))]
-        ;; This should not throw - the outer catch should log it
-        (#'kafka/process-record! ctx consumer record)
-        ;; Logger should capture the unexpected failure
-        (is (some #(or (= :d-core.core.consumers.kafka/kafka-loop-failed (:event %))
-                       (= :d-core.core.consumers.kafka/kafka-handler-failed (:event %)))
-                  @logs)))))
+      ;; This should not throw - the outer catch should log it
+      (#'kafka/process-record! ctx consumer record)
+      ;; Logger should capture the unexpected failure
+      (is (some #(or (= :d-core.core.consumers.kafka/kafka-loop-failed (:event %))
+                     (= :d-core.core.consumers.kafka/kafka-handler-failed (:event %)))
+                @logs)))))
 
 (deftest process-record-schema-validation-passes
   (testing "Valid message passes schema validation and executes handler"
-    (let [test-logger (make-test-logger)
+    (let [test-logger (h-logger/make-test-logger)
           handler-calls (atom [])
           commit-calls (atom [])
           ctx (make-test-ctx
-                :codec (make-test-codec (fn [_] {:msg {:required-field 42}}))
-                :handler (fn [envelope]
-                           (swap! handler-calls conj envelope)
-                           :ok)
-                :logger (:logger test-logger)
-                :subscription-schema {:schema [:map {:closed true} [:required-field :int]]
+               :codec (h-codec/make-test-codec (fn [_] {:msg {:required-field 42}}))
+               :handler (fn [envelope]
+                          (swap! handler-calls conj envelope)
+                          :ok)
+               :logger (:logger test-logger)
+               :subscription-schema {:schema [:map {:closed true} [:required-field :int]]
                                      :strictness :strict})
           consumer :fake-consumer
           record (make-test-record (.getBytes "test-payload" "UTF-8"))]

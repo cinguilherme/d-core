@@ -3,6 +3,7 @@
             [duct.logger :as logger]
             [d-core.core.messaging.codec :as codec]
             [d-core.core.messaging.routing :as routing]
+            [d-core.core.messaging.dead-letter.metadata :as dlmeta]
             [d-core.core.messaging.dead-letter :as dl])
   (:import (io.nats.client JetStream JetStreamManagement JetStreamSubscription Message)
            (io.nats.client.api StreamConfiguration StorageType ConsumerConfiguration AckPolicy DeliverPolicy)
@@ -84,7 +85,18 @@
                                    :subject subject
                                    :error (.getMessage e)})
                       (if dead-letter
-                        (let [dl-res (dl/send-dead-letter! dead-letter envelope
+                        (let [dl-cfg (routing/deadletter-config routing topic)
+                              envelope (dlmeta/enrich-for-deadletter
+                                         envelope
+                                         {:topic topic
+                                          :subscription-id subscription-id
+                                          :runtime :jetstream
+                                          :source {:subject subject
+                                                   :stream stream
+                                                   :durable durable}
+                                          :deadletter dl-cfg
+                                          :raw-payload payload})
+                              dl-res (dl/send-dead-letter! dead-letter envelope
                                                            {:error (.getMessage e)
                                                             :stacktrace (with-out-str (.printStackTrace e))}
                                                            {})]

@@ -20,10 +20,14 @@
   `(defmethod ig/init-key ...)` in that namespace and ensure it gets required
   (either by requiring this facade, or by requiring your sink namespace directly)."
   (:require [d-core.core.messaging.dead-letter.protocol :as protocol]
+            [d-core.core.messaging.dead-letter.policy]
+            [d-core.core.messaging.dead-letter.metadata]
             ;; Side-effect requires: register Integrant `init-key` methods.
             [d-core.core.messaging.dead-letter.sinks.logger]
             [d-core.core.messaging.dead-letter.sinks.storage]
             [d-core.core.messaging.dead-letter.sinks.producer]
+            [d-core.core.messaging.dead-letter.sinks.hybrid]
+            [d-core.core.messaging.dead-letter.replay.redis]
             [d-core.core.messaging.dead-letter.common]))
 
 ;; Public protocol + helpers (re-exported for backwards compatibility).

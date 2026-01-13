@@ -4,6 +4,7 @@
             [duct.logger :as logger]
             [d-core.core.messaging.codec :as codec]
             [d-core.core.messaging.routing :as routing]
+            [d-core.core.messaging.dead-letter.metadata :as dlmeta]
             [d-core.core.messaging.dead-letter :as dl]))
 
 (defn- ensure-consumer-group!
@@ -17,7 +18,7 @@
       nil)))
 
 (defn- start-redis-subscription!
-  [{:keys [subscription-id conn stream group consumer-name codec handler dead-letter stop? block-ms logger]}]
+  [{:keys [subscription-id conn stream group consumer-name codec handler dead-letter stop? block-ms logger topic routing]}]
   (future
     (logger/log logger :report ::redis-subscription-started
                 {:id subscription-id :stream stream :group group :consumer consumer-name})
@@ -42,7 +43,19 @@
                 (logger/log logger :error ::redis-handler-failed 
                             {:subscription-id subscription-id :stream stream :redis-id id :error (.getMessage e)})
                 (if dead-letter
-                  (let [dl-res (dl/send-dead-letter! dead-letter envelope 
+                  (let [dl-cfg (routing/deadletter-config routing topic)
+                        envelope (dlmeta/enrich-for-deadletter
+                                   envelope
+                                   {:topic topic
+                                    :subscription-id subscription-id
+                                    :runtime :redis
+                                    :source {:stream stream
+                                             :group group
+                                             :consumer consumer-name
+                                             :redis-id id}
+                                    :deadletter dl-cfg
+                                    :raw-payload payload})
+                        dl-res (dl/send-dead-letter! dead-letter envelope 
                                                      {:error (.getMessage e)
                                                       :stacktrace (with-out-str (.printStackTrace e))}
                                                      {})]
@@ -85,7 +98,9 @@
                                                     :dead-letter dead-letter
                                                     :stop? stop?
                                                     :block-ms block-ms
-                                                    :logger logger})])))
+                                                    :logger logger
+                                                    :topic topic
+                                                    :routing routing})])))
               redis-subs)]
     {:stop? stop?
      :threads threads

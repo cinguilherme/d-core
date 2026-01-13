@@ -2,10 +2,12 @@
   (:require [integrant.core :as ig]
             [duct.logger :as logger]
             [d-core.queue :as q]
+            [d-core.core.messaging.routing :as routing]
+            [d-core.core.messaging.dead-letter.metadata :as dlmeta]
             [d-core.core.messaging.dead-letter :as dl]))
 
 (defn- start-subscription!
-  [{:keys [subscription-id queue poll-ms stop? handler dead-letter logger]}]
+  [{:keys [subscription-id queue poll-ms stop? handler dead-letter logger routing topic]}]
   (future
     (logger/log logger :report ::subscription-started {:id subscription-id})
     (while (not @stop?)
@@ -15,10 +17,19 @@
           (catch Exception e
             (logger/log logger :error ::handler-failed {:id subscription-id :error (.getMessage e)})
             (when dead-letter
-              (dl/send-dead-letter! dead-letter item 
-                                    {:error (.getMessage e) 
-                                     :stacktrace (with-out-str (.printStackTrace e))} 
-                                    {}))))
+              (let [dl-cfg (when routing (routing/deadletter-config routing topic))
+                    envelope (dlmeta/enrich-for-deadletter
+                               item
+                               {:topic topic
+                                :subscription-id subscription-id
+                                :runtime :in-memory
+                                :source {:topic topic
+                                         :subscription-id subscription-id}
+                                :deadletter dl-cfg})]
+                (dl/send-dead-letter! dead-letter envelope
+                                      {:error (.getMessage e)
+                                       :stacktrace (with-out-str (.printStackTrace e))}
+                                      {})))))
         (Thread/sleep poll-ms)))
     (logger/log logger :report ::subscription-stopped {:id subscription-id})))
 
@@ -47,7 +58,9 @@
                                               :stop? stop?
                                               :handler handler
                                               :dead-letter dead-letter
-                                              :logger logger})])))
+                                              :logger logger
+                                              :routing routing
+                                              :topic topic})])))
               in-mem-subs)]
     {:queues queues
      :routing routing

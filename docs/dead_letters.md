@@ -39,6 +39,24 @@ Implementation namespaces:
 
 Storage sinks may also accept backend-specific put options (forwarded to `storage-put`).
 
+## Poison messages (non-retriable)
+
+Some failures are *not* transient and should **never** be replayed automatically:
+
+- Undecodable payloads (codec failures)
+- Subscription schema validation failures
+
+These are treated as **poison**:
+
+- They are sent to the DLQ with `[:metadata :dlq :status]` set to `:poison`
+- Consumer runtimes **ACK/commit** them after DLQ so they don't loop forever
+- DLQ replay skips anything with status not `:eligible`
+
+Internally, poison classification uses `error-info` `:failure/type` values:
+
+- `:codec-decode-failed`
+- `:schema-invalid`
+
 ## Extending
 
 To add a new sink:

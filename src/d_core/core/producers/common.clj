@@ -3,6 +3,7 @@
             [duct.logger :as logger]
             [d-core.tracing :as tracing]
             [d-core.core.messaging.routing :as routing]
+            [d-core.core.schema :as schema]
             [d-core.core.producers.protocol :as p]))
 
 (defn- resolve-trace-ctx
@@ -16,23 +17,32 @@
   (produce! [_ msg-map options]
     (let [options (or options {})
           topic (or (:topic options) :default)
-          parent-ctx (resolve-trace-ctx options)
-          ctx (tracing/child-ctx parent-ctx)
-          trace (tracing/encode-ctx ctx)
-          ;; Backwards-compat: allow explicit :producer override.
-          producer-key (or (:producer options)
-                           (:source options)
-                           (routing/source-for-topic routing topic)
-                           default-producer-key)
-          _ (logger/log logger :info "Producing message with producer:" producer-key)
-          delegate (get producers producer-key)]
-      (when-not delegate
-        (throw (ex-info "Unknown producer key"
-                        {:producer producer-key
-                         :known (keys producers)})))
-      (logger/log logger :info ::delegating-production {:topic topic :to producer-key})
-      (tracing/with-ctx ctx
-        (p/produce! delegate msg-map (assoc options :trace trace))))))
+          topic-cfg (routing/topic-config routing topic)
+          schema-cfg (:schema topic-cfg)
+          canonical (:canonical schema-cfg)
+          strictness (or (:strictness schema-cfg) :strict)
+          schema-id (or (:id schema-cfg) topic)]
+      ;; Enforce producer contract *before* we encode/publish.
+      (when canonical
+        (schema/validate! canonical msg-map {:schema-id schema-id
+                                             :strictness strictness}))
+      (let [parent-ctx (resolve-trace-ctx options)
+            ctx (tracing/child-ctx parent-ctx)
+            trace (tracing/encode-ctx ctx)
+            ;; Backwards-compat: allow explicit :producer override.
+            producer-key (or (:producer options)
+                             (:source options)
+                             (routing/source-for-topic routing topic)
+                             default-producer-key)
+            _ (logger/log logger :info "Producing message with producer:" producer-key)
+            delegate (get producers producer-key)]
+        (when-not delegate
+          (throw (ex-info "Unknown producer key"
+                          {:producer producer-key
+                           :known (keys producers)})))
+        (logger/log logger :info ::delegating-production {:topic topic :to producer-key})
+        (tracing/with-ctx ctx
+          (p/produce! delegate msg-map (assoc options :trace trace)))))))
 
 (defmethod ig/init-key :d-core.core.producers.common/producer
   [_ {:keys [default-producer producers routing logger]

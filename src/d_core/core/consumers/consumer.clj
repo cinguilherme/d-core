@@ -3,16 +3,26 @@
             [duct.logger :as logger]
             [d-core.queue :as q]
             [d-core.core.messaging.routing :as routing]
+            [d-core.core.schema :as schema]
             [d-core.core.messaging.dead-letter.metadata :as dlmeta]
             [d-core.core.messaging.dead-letter :as dl]))
 
 (defn- start-subscription!
-  [{:keys [subscription-id queue poll-ms stop? handler dead-letter logger routing topic]}]
+  [{:keys [subscription-id queue poll-ms stop? handler dead-letter logger routing topic subscription-schema]}]
   (future
     (logger/log logger :report ::subscription-started {:id subscription-id})
     (while (not @stop?)
       (if-let [item (q/dequeue! queue)]
         (try
+          ;; In-memory queue already contains decoded envelopes; apply subscription view validation.
+          (let [scfg (or subscription-schema {})
+                view (:schema scfg)
+                strictness (:strictness scfg)]
+            (when view
+              (schema/validate! view
+                               (or (:msg item) item)
+                               {:schema-id subscription-id
+                                :strictness strictness})))
           (handler item)
           (catch Exception e
             (logger/log logger :error ::handler-failed {:id subscription-id :error (.getMessage e)})
@@ -25,9 +35,10 @@
                                 :runtime :in-memory
                                 :source {:topic topic
                                          :subscription-id subscription-id}
-                                :deadletter dl-cfg})]
+                                :deadletter dl-cfg
+                                :status (when (= :schema-invalid (:failure/type (ex-data e))) :poison)})]
                 (dl/send-dead-letter! dead-letter envelope
-                                      {:error (.getMessage e)
+                                      {:error e
                                        :stacktrace (with-out-str (.printStackTrace e))}
                                       {})))))
         (Thread/sleep poll-ms)))
@@ -46,7 +57,7 @@
                           subscriptions)
         threads
         (into {}
-              (map (fn [[subscription-id {:keys [topic handler options]
+              (map (fn [[subscription-id {:keys [topic handler options schema]
                                          :or {options {}}}]]
                      (let [topic (or topic :default)
                            queue (q/get-queue! queues topic)
@@ -60,7 +71,8 @@
                                               :dead-letter dead-letter
                                               :logger logger
                                               :routing routing
-                                              :topic topic})])))
+                                              :topic topic
+                                              :subscription-schema schema})])))
               in-mem-subs)]
     {:queues queues
      :routing routing

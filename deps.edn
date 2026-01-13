@@ -2,6 +2,9 @@
         org.clojure/clojure {:mvn/version "1.12.3"}
         org.clojure/core.async {:mvn/version "1.8.741"}
         
+        ;; Schema validation / generation
+        metosin/malli {:mvn/version "0.20.0"}
+        
         ;; Database dependencies
         org.clojure/java.jdbc {:mvn/version "0.7.12"}
         com.github.seancorfield/next.jdbc {:mvn/version "1.3.955"}

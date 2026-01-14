@@ -35,9 +35,14 @@
 
 (defrecord DefaultPolicy []
   DeadLetterPolicy
-  (classify [_ envelope _error-info opts]
+  (classify [_ envelope error-info opts]
     (let [cfg (dlq-cfg envelope)
           meta (dlq-meta envelope)
+          ;; Poison failures are terminal and should not be replayed automatically.
+          failure-type (or (:failure/type error-info)
+                           (get-in error-info [:error :failure/type])
+                           (get-in error-info [:error-info :failure/type]))
+          poison? (contains? #{:schema-invalid :codec-decode-failed} failure-type)
           ;; attempt is maintained by the replay controller; on first failure it is 0.
           attempt (long (or (:attempt meta) 0))
           max-attempts (long (or (:max-attempts cfg) defaults/*default-max-attempts*))
@@ -46,6 +51,7 @@
           sink (or (:sink opts) (:sink cfg))
           sink (or sink :hybrid)
           status0 (or (:status cfg) (:status meta) :eligible)
+          status0 (if poison? :poison status0)
           status (if (and (= status0 :eligible) (>= attempt max-attempts))
                    :stuck
                    status0)]

@@ -31,6 +31,7 @@ This page tracks what D-Core currently supports, what is planned, and what is ex
 - JetStream/NATS
 - SQLite
 - Postgres
+- Datomic
 - Typesense
 - HTTP (policy wrapper: rate-limit, bulkhead, circuit breaker, retries)
 

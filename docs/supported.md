@@ -32,6 +32,7 @@ This page tracks what D-Core currently supports, what is planned, and what is ex
 - SQLite
 - Postgres
 - Typesense
+- HTTP (policy wrapper: rate-limit, bulkhead, circuit breaker, retries)
 
 ### Tracing
 

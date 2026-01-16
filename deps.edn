@@ -29,6 +29,10 @@
         
         ;; HTTP dependencies
         clj-http/clj-http {:mvn/version "3.12.3"}
+
+        ;; WebSocket / async server (Aleph + Manifold)
+        aleph/aleph {:mvn/version "0.9.3"}
+        manifold/manifold {:mvn/version "0.5.0"}
         
         ;; JetStream / NATS dependencies
         io.nats/jnats {:mvn/version "2.20.5"}

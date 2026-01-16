@@ -19,6 +19,7 @@ It is intentionally **coupled to Integrant and Duct**. The “API surface” is 
   - cache (in-memory + redis-backed)
   - storage (local-disk + minio/s3-style)
   - clients (redis, kafka, jetstream/nats, sqlite/postgres, typesense)
+  - http client (policy wrapper: rate-limit, bulkhead, circuit breaker, retries)
   - tracing helpers + Ring middleware
   - simple in-memory queues for local/dev and testing
 - **Swappable implementations** behind stable protocols (so apps can keep the same business logic across envs).
@@ -84,6 +85,19 @@ Example (illustrative):
 
   ;; rest of d-core keys: clients, producers, consumers, cache, storage...
   }}
+```
+
+HTTP client example (illustrative):
+
+```edn
+{:system
+ {:d-core.core.http/clients
+  {:payments {:base-url "https://api.example.com"
+              :default-headers {"Accept" "application/json"}
+              :policies {:rate-limit {:rate-per-sec 50 :burst 100}
+                         :bulkhead {:max-concurrent 20}
+                         :circuit-breaker {:failure-threshold 5}
+                         :retry {:max-attempts 3}}}}}}
 ```
 
 ### Repo layout expectation

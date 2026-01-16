@@ -11,6 +11,14 @@
         org.xerial/sqlite-jdbc {:mvn/version "3.45.3.0"}
         org.postgresql/postgresql {:mvn/version "42.7.4"}
         com.zaxxer/HikariCP {:mvn/version "5.1.0"}
+        com.h2database/h2 {:mvn/version "1.4.200"}
+        
+        ;; Database Datomic dependencies
+        ;;com.datomic/local {:mvn/version "1.0.291"}
+        com.datomic/peer     {:mvn/version "1.0.7482"}
+        ;;com.datomic/client-cloud {:mvn/version "1.0.131"}
+        ;com.datomic/datomic-pro {:mvn/version "1.0.7482"}
+
         
         ;; Duct dependencies
         org.duct-framework/main {:mvn/version "0.4.4"}

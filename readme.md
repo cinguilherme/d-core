@@ -100,6 +100,34 @@ HTTP client example (illustrative):
                          :retry {:max-attempts 3}}}}}}
 ```
 
+#### Datomic (local transactor)
+
+If you are on ARM/macOS and the Docker image is not available, you can run a local Datomic transactor.
+check the official documentation for more details: https://docs.datomic.com/setup/pro-setup.html#get-datomic
+
+1) Download Datomic from the Datomic site and unzip it 
+ ```bash 
+ curl https://datomic-pro-downloads.s3.amazonaws.com/1.0.7482/datomic-pro-1.0.7482.zip -O
+ unzip datomic-pro-1.0.7482.zip
+ ```
+
+2) Start the Datomic transactor with 
+```bash
+bin/transactor config/samples/dev-transactor-template.properties
+```
+
+```properties
+host=localhost
+port=4334
+data-dir=/absolute/path/to/d-core/.datomic/data
+```
+
+3) Use this URI in your config or playground:
+
+```
+datomic:free://localhost:4334/d-core
+```
+
 ### Repo layout expectation
 
 - D-Core code lives under `src/d_core/**` and uses the `d-core.*` namespace prefix.

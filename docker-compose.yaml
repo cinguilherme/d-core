@@ -100,18 +100,21 @@ services:
       KAFKA_LOG_SEGMENT_BYTES: 1073741824
       KAFKA_LOG_SEGMENT_MS: 86400000
 
-  datomic:
-    image: akiel/datomic-free:latest
-    ports:
-      - 4334:4334
-      - 4335:4335
-      - 4336:4336
-    environment:
-      DATOMIC_ALT_HOST: localhost
-      DATOMIC_HOST: datomic
-      DATOMIC_DATA_DIR: /data
-    volumes:
-      - datomic_data:/data
+  # NOTE: Datomic image is not supported on arm64
+  # datomic:
+  #   image: akiel/datomic-free:latest
+  #   container_name: datomic
+  #   platform: linux/arm64
+  #   ports:
+  #     - 4334:4334
+  #     - 4335:4335
+  #     - 4336:4336
+  #   environment:
+  #     DATOMIC_ALT_HOST: localhost
+  #     DATOMIC_HOST: datomic
+  #     DATOMIC_DATA_DIR: /data
+  #   volumes:
+  #     - datomic_data:/data
 
 volumes:
   postgres_data:
@@ -121,6 +124,6 @@ volumes:
   typesense_data:
   nats_data:
   kafka_data:
-  datomic_data:
+  # datomic_data:
   # rabbitmq_data:
   # kafka_data:

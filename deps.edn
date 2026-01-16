@@ -17,6 +17,8 @@
         org.duct-framework/test {:mvn/version "0.1.0"}
         org.duct-framework/module.web {:mvn/version "0.13.4"}
         org.duct-framework/module.logging {:mvn/version "0.6.6"}
+        metosin/reitit {:mvn/version "0.9.1"}
+
         
         ;; Redis dependencies
         com.taoensso/carmine {:mvn/version "3.4.1"}

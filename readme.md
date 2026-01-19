@@ -20,6 +20,8 @@ It is intentionally **coupled to Integrant and Duct**. The “API surface” is 
   - storage (local-disk + minio/s3-style)
   - clients (redis, kafka, jetstream/nats, sqlite/postgres, datomic (Work in Progress), typesense)
   - http client (policy wrapper: rate-limit, bulkhead, circuit breaker, retries)
+  - metrics (Prometheus registry + scrape server)
+  - rate limiting (sliding window, leaky bucket)
   - tracing helpers + Ring middleware
   - simple in-memory queues for local/dev and testing
 - **Swappable implementations** behind stable protocols (so apps can keep the same business logic across envs).
@@ -66,6 +68,8 @@ And `d-core` provides the infrastructure keys:
 - `:d-core.core.cache/*`
 - `:d-core.core.storage/*`
 - `:d-core.core.tracing.http/middleware`
+- `:d-core.core.metrics.prometheus/*`
+- `:d-core.core.rate-limit.*/*`
 - `:d-core.queue/*`
 
 Example (illustrative):
@@ -98,6 +102,25 @@ HTTP client example (illustrative):
                          :bulkhead {:max-concurrent 20}
                          :circuit-breaker {:failure-threshold 5}
                          :retry {:max-attempts 3}}}}}}
+```
+
+Metrics (Prometheus registry + dedicated scrape server):
+
+```edn
+{:system
+ {:d-core.core.metrics.prometheus/registry {:jvm-metrics? true}
+  :d-core.core.metrics.prometheus/metrics {:registry #ig/ref :d-core.core.metrics.prometheus/registry}
+  :d-core.core.metrics.prometheus/server {:port 9100
+                                          :registry #ig/ref :d-core.core.metrics.prometheus/registry}}}
+```
+
+Rate limiting (in-memory, sliding window or leaky bucket):
+
+```edn
+{:system
+ {:d-core.core.rate-limit.sliding-window/limiter {:limit 100 :window-ms 60000}
+  ;; or
+  :d-core.core.rate-limit.leaky-bucket/limiter {:capacity 200 :leak-rate-per-sec 50}}}
 ```
 
 #### Datomic (local transactor)

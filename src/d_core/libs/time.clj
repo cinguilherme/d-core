@@ -55,6 +55,7 @@
   (cond
     (instance? Instant value) value
     (number? value) (Instant/ofEpochMilli (long value))
+    (instance? java.util.Date value) (.toInstant ^java.util.Date value)
     (instant-map? value)
     (if (contains? value :epoch-ms)
       (Instant/ofEpochMilli (long (:epoch-ms value)))

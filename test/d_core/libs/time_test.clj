@@ -27,6 +27,8 @@
 (deftest instant-maps-roundtrip
   (testing "instant -> map -> instant"
     (is (time/instant= base-instant (time/map->instant (time/instant->map base-instant)))))
+  (testing "#inst literal (java.util.Date) coercion"
+    (is (time/instant= base-instant (time/map->instant #inst "2024-01-01T00:00:00.000-00:00"))))
   (testing "epoch-second/nano map coercion"
     (let [m {:epoch-second 1 :nano 2}]
       (is (time/instant= (Instant/ofEpochSecond 1 2) (time/map->instant m)))))
@@ -64,7 +66,7 @@
 
 (deftest since-duration
   (let [later-clock (time/new-clock {:type :fixed
-                                     :instant (Instant/parse "2024-01-01T00:00:10Z")
+                                     :instant #inst "2024-01-01T00:00:10Z"
                                      :zone "UTC"})]
     (is (= (Duration/ofSeconds 10)
            (time/since later-clock base-instant)))))
@@ -82,4 +84,4 @@
     (testing "between inclusive"
       (is (true? (time/between? base-instant base-map later)))
       (is (true? (time/between? later base-instant later)))
-      (is (false? (time/between? base-instant later (Instant/parse "2024-01-01T00:00:20Z")))))))
+      (is (false? (time/between? base-instant later #inst "2024-01-01T00:00:20Z"))))))

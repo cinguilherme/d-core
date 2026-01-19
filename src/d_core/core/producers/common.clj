@@ -29,23 +29,27 @@
       (let [parent-ctx (resolve-trace-ctx options)
             ctx (tracing/child-ctx parent-ctx)
             trace (tracing/encode-ctx ctx)
-            ;; Backwards-compat: allow explicit :producer override.
-            producer-key (or (:producer options)
-                             (:source options)
-                             (routing/source-for-topic routing topic)
-                             default-producer-key)
-            _ (logger/log logger :info "Producing message with producer:" producer-key)
-            delegate (get producers producer-key)]
-        (when-not delegate
-          (throw (ex-info "Unknown producer key"
-                          {:producer producer-key
-                           :known (keys producers)})))
-        (logger/log logger :info ::delegating-production {:topic topic :to producer-key})
-        (tracing/with-ctx ctx
-          (p/produce! delegate msg-map (assoc options :trace trace)))))))
+            ;; Backwards-compat: allow explicit :producer/:source override.
+            producer-keys (cond
+                            (contains? options :producer) [(:producer options)]
+                            (contains? options :source) [(:source options)]
+                            (contains? options :sources) (vec (:sources options))
+                            :else (routing/sources-for-topic routing topic))
+            produce-one (fn [producer-key]
+                          (logger/log logger :info "Producing message with producer:" producer-key)
+                          (let [delegate (get producers producer-key)]
+                            (when-not delegate
+                              (throw (ex-info "Unknown producer key"
+                                              {:producer producer-key
+                                               :known (keys producers)})))
+                            (logger/log logger :info ::delegating-production {:topic topic :to producer-key})
+                            (tracing/with-ctx ctx
+                              (p/produce! delegate msg-map (assoc options :trace trace :source producer-key)))))]
+        (if (= 1 (count producer-keys))
+          (produce-one (first producer-keys))
+          (mapv produce-one producer-keys))))))
 
 (defmethod ig/init-key :d-core.core.producers.common/producer
   [_ {:keys [default-producer producers routing logger]
       :or {default-producer :in-memory}}]
   (->CommonProducer default-producer producers routing logger))
-

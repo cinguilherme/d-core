@@ -81,7 +81,7 @@ Example (illustrative):
   ;; app-level routing (handlers are refs to your app namespaces)
   :my-app.config.messaging/routing
   {:handlers {:order-created #ig/ref :my-app.handlers/order-created}
-   :topics {:orders {:source :redis}}
+   :topics {:orders {:sources [:redis :kafka]}}
    :subscriptions {:orders-sub {:topic :orders :handler :order-created :source :redis}}}
 
   ;; d-core routing facade points at your app routing

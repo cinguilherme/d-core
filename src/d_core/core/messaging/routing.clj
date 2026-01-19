@@ -16,7 +16,17 @@
 (defn source-for-topic
   [routing topic]
   (or (get-in routing [:topics topic :source])
+      (first (get-in routing [:topics topic :sources]))
       (default-source routing)))
+
+(defn sources-for-topic
+  "Returns a vector of producer/source keys for `topic`.
+  Prefers explicit :sources, falls back to single :source, then defaults."
+  [routing topic]
+  (let [sources (or (get-in routing [:topics topic :sources])
+                    (get-in routing [:topics topic :source])
+                    (default-source routing))]
+    (vec (if (sequential? sources) sources [sources]))))
 
 ;; Dead letter configuration
 ;;

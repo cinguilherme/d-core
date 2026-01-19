@@ -118,7 +118,7 @@
                  :variables (normalize-variables variables)
                  :operation-name operation-name}))))))
 
-      {:error "Unsupported HTTP method."})
+    {:error "Unsupported HTTP method."}
     (catch Exception e
       {:error (str "Invalid variables JSON: " (ex-message e))})))
 
@@ -269,7 +269,7 @@
             (do
               (when logger
                 (logger/log logger :warn ::unknown-ws-message {:type type}))
-              (send-ws-error! conn id (str "Unsupported message type: " type)))))))
+              (send-ws-error! conn id (str "Unsupported message type: " type))))))
       conn)
     conn))
 

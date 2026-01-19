@@ -53,8 +53,14 @@
                         :strictness strictness})))
   envelope)
 
+(defn- resolve-client
+  [clients client-key]
+  (cond
+    (map? clients) (or (get clients client-key) (get clients :default))
+    :else clients))
+
 (defn- dlq-ctx
-  [{:keys [topic subscription-id exchange queue routing-key delivery-tag redelivered? dl-cfg raw-payload status]}]
+  [{:keys [topic subscription-id exchange queue routing-key delivery-tag redelivered? dl-cfg raw-payload status client-key]}]
   {:topic topic
    :subscription-id subscription-id
    :runtime :rabbitmq
@@ -62,7 +68,9 @@
             :queue queue
             :routing-key routing-key
             :delivery-tag delivery-tag
-            :redelivered redelivered?}
+            :redelivered redelivered?
+            :client client-key}
+   :producer client-key
    :deadletter dl-cfg
    :raw-payload raw-payload
    :status status})
@@ -180,7 +188,7 @@
                      :error (.getMessage ^Throwable e)})))))
 
 (defn- start-rabbitmq-subscription!
-  [{:keys [subscription-id rabbitmq routing codec handler dead-letter stop? logger topic options subscription-schema]}]
+  [{:keys [subscription-id rabbitmq routing codec handler dead-letter stop? logger topic options subscription-schema client-key]}]
   (future
     (let [options (or options {})
           topic (or topic :default)
@@ -229,8 +237,9 @@
                    :queue queue
                    :routing-key routing-key
                    :channel channel
-                   :dl-cfg (routing/deadletter-config routing topic)
-                   :subscription-schema subscription-schema}
+                   :dl-cfg (routing/deadletter-config routing topic subscription-id)
+                   :subscription-schema subscription-schema
+                   :client-key client-key}
               consumer (proxy [DefaultConsumer] [channel]
                          (handleDelivery [tag env props body]
                            (process-delivery! ctx env body)))]
@@ -261,13 +270,22 @@
                             subscriptions)
         threads
         (into {}
-              (map (fn [[subscription-id {:keys [topic handler options schema]
+              (map (fn [[subscription-id {:keys [topic handler options schema client producer]
                                          :or {options {}}}]]
-                     (let [topic (or topic :default)]
+                     (let [topic (or topic :default)
+                           client-key (or client
+                                          producer
+                                          (when (and (map? rabbitmq) (contains? rabbitmq :default)) :default))
+                           rabbitmq-client (resolve-client rabbitmq client-key)]
+                       (when-not rabbitmq-client
+                         (throw (ex-info "RabbitMQ subscription client not configured"
+                                         {:subscription-id subscription-id
+                                          :client client-key
+                                          :known (when (map? rabbitmq) (keys rabbitmq))})))
                        [subscription-id
                         (start-rabbitmq-subscription!
                           {:subscription-id subscription-id
-                           :rabbitmq rabbitmq
+                           :rabbitmq rabbitmq-client
                            :routing routing
                            :codec codec
                            :handler handler
@@ -276,6 +294,7 @@
                            :logger logger
                            :topic topic
                            :options options
+                           :client-key client-key
                            :subscription-schema schema})])))
               rabbitmq-subs)]
     {:stop? stop?

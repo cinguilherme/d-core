@@ -76,6 +76,8 @@
                    :subscriptions {:sub {:topic :orders
                                          :handler handler
                                          :source :in-memory
+                                         :deadletter {:max-retries 7
+                                                      :delay-ms 1000}
                                          :schema {:schema [:map {:closed true} [:a :int]]
                                                   :strictness :strict}}}}
           logger (:logger (h-logger/make-test-logger))
@@ -94,7 +96,7 @@
           (let [{:keys [envelope]} (first @dlq-calls)]
             (is (= :orders (get-in envelope [:metadata :dlq :topic])))
             (is (= :poison (get-in envelope [:metadata :dlq :status])))
-            (is (= {:sink :producer :max-retries 3}
+            (is (= {:sink :producer :max-retries 7 :delay-ms 1000}
                    (get-in envelope [:metadata :dlq :deadletter])))))
         (finally
           (ig/halt-key! :d-core.core.consumers.consumer/consumer component))))))

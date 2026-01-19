@@ -2,7 +2,6 @@
   (:require [integrant.core :as ig]
             [duct.logger :as logger]
             [d-core.core.producers.protocol :as producer]
-            [d-core.core.messaging.routing :as routing]
             [d-core.tracing :as tracing]
             [d-core.core.messaging.dead-letter.destination :as dest]
             [d-core.core.messaging.dead-letter.protocol :as dl]))
@@ -22,16 +21,20 @@
           payload-hash (:payload-hash dlq)
           ;; Allow explicit override, otherwise derive destination using `.dl` convention.
           dlq-topic (or (:dlq-topic opts) (get-in envelope [:metadata :dlq :deadletter :dlq-topic]))
+          producer-key (or (:producer opts)
+                           (:client opts)
+                           (get-in envelope [:metadata :dlq :producer]))
           dest (if dlq-topic
                  {:topic dlq-topic
-                  :source (routing/source-for-topic routing orig-topic)
+                  :producer producer-key
                   :options {}}
                  (dest/dlq-destination routing orig-topic envelope))
-          produce-opts (merge {:topic (:topic dest)
-                               ;; force same transport as original topic unless overridden
-                               :source (:source dest)
-                               :trace/ctx dlq-ctx}
-                              (:options dest))
+          base-opts (cond-> {:topic (:topic dest)
+                             :trace/ctx dlq-ctx}
+                      ;; force same producer/client as original subscription unless overridden
+                      (or (:producer dest) producer-key)
+                      (assoc :producer (or (:producer dest) producer-key)))
+          produce-opts (merge base-opts (:options dest))
           payload {:dlq-id dlq-id
                    :payload-hash payload-hash
                    :original-topic orig-topic
@@ -59,4 +62,3 @@
   [_ {:keys [producer routing delay-ms logger]
       :or {delay-ms 0}}]
   (->ProducerDeadLetter producer routing delay-ms logger))
-

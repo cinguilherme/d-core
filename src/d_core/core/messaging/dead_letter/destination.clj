@@ -26,19 +26,22 @@
 
   Output keys:
   - `:topic` keyword (derived, e.g. :orders.dl)
-  - `:source` keyword (same as the original topic source) so the DLQ uses the same transport
+  - `:producer` keyword (same as the original subscription producer/client key)
   - `:options` map of backend-specific overrides when the topic config uses explicit names
     (e.g. redis :stream, kafka :kafka-topic, jetstream :subject).
 
   Suffix can be overridden per-topic via routing `:deadletter {:suffix \".dl\"}`."
   [routing topic envelope]
-  (let [src (routing/source-for-topic routing topic)
+  (let [runtime (get-in envelope [:metadata :dlq :runtime])
+        producer-key (get-in envelope [:metadata :dlq :producer])
         cfg (routing/topic-config routing topic)
         suf (suffix envelope)
         dlq-topic (keyword (str (name topic) suf))
-        opts (case src
+        opts (case runtime
                :redis (when-let [stream (:stream cfg)]
                         {:stream (str stream suf)})
+               :redis-replay (when-let [stream (:stream cfg)]
+                               {:stream (str stream suf)})
                :kafka (when-let [kt (:kafka-topic cfg)]
                         {:kafka-topic (str kt suf)})
                :jetstream (when-let [subj (:subject cfg)]
@@ -46,6 +49,5 @@
                :in-memory nil
                nil)]
     {:topic dlq-topic
-     :source src
+     :producer producer-key
      :options (or opts {})}))
-

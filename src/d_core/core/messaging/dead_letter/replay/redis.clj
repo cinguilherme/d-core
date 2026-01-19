@@ -26,25 +26,21 @@
         (str "core:" (name topic)))))
 
 (defn- dlq-stream
-  [routing topic]
+  [routing topic subscription-id]
   (let [base (topic->stream routing topic)
-        dl-cfg (routing/deadletter-config routing topic)
+        dl-cfg (routing/deadletter-config routing topic subscription-id)
         suffix (or (:suffix dl-cfg) ".dl")]
     (str base suffix)))
 
 (defn- redis-topics
-  "Topics in routing that should have redis DLQ streams monitored."
+  "Topics in routing subscriptions that should have redis DLQ streams monitored."
   [routing]
-  (let [topics (keys (get routing :topics {}))
-        subs (->> (get routing :subscriptions {})
-                  vals
-                  (map :topic)
-                  (remove nil?))]
-    (->> (concat topics subs)
-         (map #(or % :default))
-         distinct
-         (filter (fn [t] (= :redis (routing/source-for-topic routing t))))
-         vec)))
+  (->> (get routing :subscriptions {})
+       (filter (fn [[_id sub]] (= :redis (:source sub))))
+       (map (fn [[subscription-id sub]]
+              {:topic (or (:topic sub) :default)
+               :subscription-id subscription-id}))
+       vec))
 
 (defn- decode-dlq-entry
   "Given a redis stream entry fields map, decode envelope (expects field \"payload\")."
@@ -73,7 +69,11 @@
 (defn- replay-once!
   [{:keys [conn routing codec policy admin logger group consumer block-ms count]}]
   (let [topics (redis-topics routing)
-        streams (mapv #(dlq-stream routing %) topics)
+        streams (->> topics
+                     (map (fn [{:keys [topic subscription-id]}]
+                            (dlq-stream routing topic subscription-id)))
+                     distinct
+                     vec)
         _ (doseq [s streams] (ensure-consumer-group! conn s group))]
     ;; NOTE: Carmine's command macros (e.g. xreadgroup) are not reliably invokable via `apply`.
     ;; To stay safe, read one stream at a time.
@@ -92,7 +92,8 @@
                            (get-in envelope [:metadata :dlq :id]))
                 original (extract-original-envelope envelope)
                 topic (or (get-in original [:metadata :dlq :topic]) :default)
-                dl-cfg (routing/deadletter-config routing topic)
+                subscription-id (get-in original [:metadata :dlq :subscription-id])
+                dl-cfg (routing/deadletter-config routing topic subscription-id)
                 original (dlmeta/enrich-for-deadletter original
                                                       {:topic topic
                                                        :runtime :redis-replay
@@ -167,4 +168,3 @@
   (when thread
     (deref thread 1000 nil))
   nil)
-

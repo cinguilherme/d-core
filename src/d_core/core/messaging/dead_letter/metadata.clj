@@ -68,12 +68,13 @@
     - `:subscription-id` (keyword)
     - `:runtime` (keyword, e.g. :redis/:kafka/:jetstream/:in-memory)
     - `:source` (map, runtime-specific details like stream/offset/etc)
+    - `:producer` (keyword, producer/client key to route DLQ publishes)
     - `:deadletter` (effective per-topic dl config; stored as a snapshot)
     - `:raw-payload` (string/bytes; stored as portable meta)
     - `:status` (default :eligible)
 
   Returns updated envelope map."
-  [envelope {:keys [topic subscription-id runtime source deadletter raw-payload status]}]
+  [envelope {:keys [topic subscription-id runtime source deadletter raw-payload status producer]}]
   (let [envelope (ensure-envelope envelope)
         ts (now-ms)
         status (or status :eligible)
@@ -97,6 +98,6 @@
                                     (when subscription-id {:subscription-id subscription-id})
                                     (when runtime {:runtime runtime})
                                     (when (map? source) {:source source})
+                                    (when producer {:producer producer})
                                     (when (map? deadletter) {:deadletter deadletter}))
                        raw (assoc :raw-payload raw))))))
-

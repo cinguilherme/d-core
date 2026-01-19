@@ -22,6 +22,7 @@ It is intentionally **coupled to Integrant and Duct**. The “API surface” is 
   - http client (policy wrapper: rate-limit, bulkhead, circuit breaker, retries)
   - metrics (Prometheus registry + scrape server)
   - rate limiting (sliding window, leaky bucket)
+  - cron tasks (Quartz-backed scheduler)
   - tracing helpers + Ring middleware
   - simple in-memory queues for local/dev and testing
 - **Swappable implementations** behind stable protocols (so apps can keep the same business logic across envs).
@@ -123,6 +124,35 @@ Rate limiting (in-memory, sliding window or leaky bucket):
  {:d-core.core.rate-limit.sliding-window/limiter {:limit 100 :window-ms 60000}
   ;; or
   :d-core.core.rate-limit.leaky-bucket/limiter {:capacity 200 :leak-rate-per-sec 50}}}
+```
+
+Cron tasks (Quartz-backed scheduler):
+
+```edn
+{:system
+ {:d-core.libs.cron-task/scheduler
+  {:handlers {:cleanup #ig/ref :my-app.handlers/cleanup
+              :sync #ig/ref :my-app.handlers/sync}
+   :deps {:db #ig/ref :d-core.core.clients/postgres/client}
+   :tasks {:cleanup {:cron "0 0 * * * ?"
+                     :handler :cleanup
+                     :payload {:limit 100}
+                     :timezone "UTC"
+                     :enabled true}
+           :sync {:cron "0 */5 * * * ?"
+                  :handler :sync
+                  :payload {:scope :daily}}}
+   :sync-mode :replace
+   :start? true}}}
+```
+
+Handler contract (each run receives a context map):
+
+```clj
+(defn cleanup-handler
+  [{:keys [task-id payload deps fire-time]}]
+  (let [{:keys [db]} deps]
+    {:task task-id :ran-at fire-time :payload payload}))
 ```
 
 #### Datomic (local transactor)

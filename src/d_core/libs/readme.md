@@ -19,3 +19,10 @@ clock component that defaults to UTC. It is meant to keep time operations
 consistent across the system and to make time data easy to serialize.
 
 See `docs/time.md` for usage and configuration.
+
+### Cron Tasks
+
+Cron Tasks provides a Quartz-backed scheduler component for config-defined
+cron jobs that dispatch into handler functions with injected components.
+
+See `docs/cron_task.md` for usage and configuration.

@@ -43,6 +43,10 @@ This page tracks what D-Core currently supports, what is planned, and what is ex
 - Context helpers (`d-core.tracing`)
 - Ring middleware (`:d-core.core.tracing.http/middleware`)
 
+### Scheduling
+
+- Cron tasks (Quartz-backed scheduler component)
+
 ### Dev/test helpers
 
 - In-memory queues (`:d-core.queue/*`)

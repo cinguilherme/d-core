@@ -55,6 +55,12 @@
 
         ;; Memcached dependencies
         net.spy/spymemcached {:mvn/version "2.12.3"}
+
+        ;; Metrics / Prometheus
+        io.prometheus/simpleclient {:mvn/version "0.16.0"}
+        io.prometheus/simpleclient_common {:mvn/version "0.16.0"}
+        io.prometheus/simpleclient_hotspot {:mvn/version "0.16.0"}
+        io.prometheus/simpleclient_httpserver {:mvn/version "0.16.0"}
 }
 
  :aliases

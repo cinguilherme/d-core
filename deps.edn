@@ -19,6 +19,10 @@
         ;;com.datomic/client-cloud {:mvn/version "1.0.131"}
         ;com.datomic/datomic-pro {:mvn/version "1.0.7482"}
 
+        ;; XTDB dependencies
+        com.xtdb/xtdb-api {:mvn/version "2.1.0"}
+        com.xtdb/xtdb-core {:mvn/version "2.1.0"}
+
         
         ;; Duct dependencies
         org.duct-framework/main {:mvn/version "0.4.4"}

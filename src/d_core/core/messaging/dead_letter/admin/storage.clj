@@ -95,10 +95,14 @@
           (let [item (:item res)
                 envelope (:envelope item)
                 topic (or (:topic opts) (get-in envelope [:metadata :dlq :topic]) :default)
+                producer-key (or (:producer opts)
+                                 (:client opts)
+                                 (get-in envelope [:metadata :dlq :producer]))
                 msg (:msg envelope)
-                ack (producer/produce! producer msg {:topic topic
-                                                     :dlq/id dlq-id
-                                                     :dlq/payload-hash (get-in envelope [:metadata :dlq :payload-hash])})]
+                ack (producer/produce! producer msg (cond-> {:topic topic
+                                                             :dlq/id dlq-id
+                                                             :dlq/payload-hash (get-in envelope [:metadata :dlq :payload-hash])}
+                                                     producer-key (assoc :producer producer-key)))]
             {:ok true :dlq-id dlq-id :topic topic :ack ack})))
       (catch Exception e
         (logger/log logger :error ::dlq-admin-replay-failed {:dlq-id dlq-id :error (.getMessage e)})
@@ -107,4 +111,3 @@
 (defmethod ig/init-key :d-core.core.messaging.dead-letter.admin/storage
   [_ {:keys [storage producer logger]}]
   (->StorageDeadLetterAdmin storage producer logger))
-

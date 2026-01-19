@@ -19,6 +19,12 @@
   (let [cfg (routing/topic-config routing topic)]
     (or (:group cfg) "core")))
 
+(defn- resolve-client
+  [clients client-key]
+  (cond
+    (map? clients) (or (get clients client-key) (get clients :default))
+    :else clients))
+
 (defn- validate-subscription!
   [{:keys [subscription-id subscription-schema]} envelope]
   (let [scfg (or subscription-schema {})
@@ -32,8 +38,8 @@
   envelope)
 
 (defn- enrich-kafka-envelope
-  [{:keys [topic subscription-id kafka-topic group-id] :as ctx} r envelope raw status]
-  (let [dl-cfg (routing/deadletter-config (:routing ctx) topic)]
+  [{:keys [topic subscription-id kafka-topic group-id client-key] :as ctx} r envelope raw status]
+  (let [dl-cfg (routing/deadletter-config (:routing ctx) topic subscription-id)]
     (dlmeta/enrich-for-deadletter
       (or envelope {:msg nil})
       {:topic topic
@@ -43,7 +49,9 @@
                 :group-id group-id
                 :partition (:partition r)
                 :offset (:offset r)
-                :timestamp (:timestamp r)}
+                :timestamp (:timestamp r)
+                :client client-key}
+       :producer client-key
        :deadletter dl-cfg
        :raw-payload raw
        :status status})))
@@ -119,7 +127,7 @@
                      :error (.getMessage e)})))))
 
 (defn- start-kafka-subscription!
-  [{:keys [subscription-id kafka routing codec handler dead-letter stop? logger topic options subscription-schema]}]
+  [{:keys [subscription-id kafka routing codec handler dead-letter stop? logger topic options subscription-schema client-key]}]
   (future
     (let [options (or options {})
           topic (or topic :default)
@@ -146,6 +154,7 @@
                    :topic topic
                    :kafka-topic kafka-topic
                    :group-id group-id
+                   :client-key client-key
                    :subscription-schema subscription-schema}]
           (while (not @stop?)
             (doseq [r (kc/poll! consumer {:timeout-ms poll-ms})]
@@ -163,13 +172,22 @@
                          subscriptions)
         threads
         (into {}
-              (map (fn [[subscription-id {:keys [topic handler options schema]
+              (map (fn [[subscription-id {:keys [topic handler options schema client producer]
                                          :or {options {}}}]]
-                     (let [topic (or topic :default)]
+                     (let [topic (or topic :default)
+                           client-key (or client
+                                          producer
+                                          (when (and (map? kafka) (contains? kafka :default)) :default))
+                           kafka-client (resolve-client kafka client-key)]
+                       (when-not kafka-client
+                         (throw (ex-info "Kafka subscription client not configured"
+                                         {:subscription-id subscription-id
+                                          :client client-key
+                                          :known (when (map? kafka) (keys kafka))})))
                        [subscription-id
                         (start-kafka-subscription!
                           {:subscription-id subscription-id
-                           :kafka kafka
+                           :kafka kafka-client
                            :routing routing
                            :codec codec
                            :handler handler
@@ -178,6 +196,7 @@
                            :logger logger
                            :topic topic
                            :options options
+                           :client-key client-key
                            :subscription-schema schema})])))
               kafka-subs)]
     {:stop? stop?
@@ -192,4 +211,3 @@
   (doseq [[_id thread] threads]
     (deref thread 1000 nil))
   nil)
-

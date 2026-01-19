@@ -34,6 +34,7 @@ Implementation namespaces:
 
 - `:sink`: override the sink when using the common facade (`:logger`, `:storage`, `:producer`, or your custom sink key)
 - `:dlq-topic`: override producer destination topic
+- `:producer` / `:client`: override which producer/client key publishes the DLQ message
 - `:max-retries`: override producer max retries
 - `:delay-ms`: override producer delay before publishing
 
@@ -52,6 +53,14 @@ These are treated as **poison**:
 - Consumer runtimes **ACK/commit** them after DLQ so they don't loop forever
 - DLQ replay skips anything with status not `:eligible`
 
+## Routing behavior
+
+DLQ publishing uses the producer/client key captured at the time of consumption:
+
+- Consumer runtimes enrich envelopes with `[:metadata :dlq :producer]`.
+- Producer DLQ sink uses that key by default, unless overridden by `:producer`/`:client` in opts.
+- Dead letter config merges in this order: defaults -> topic -> subscription.
+
 Internally, poison classification uses `error-info` `:failure/type` values:
 
 - `:codec-decode-failed`
@@ -65,4 +74,3 @@ To add a new sink:
 2. Implement `DeadLetterProtocol`
 3. (Optional) Define an Integrant `ig/init-key` for wiring
 4. Ensure the namespace is required at runtime (requiring `d-core.core.messaging.dead-letter` will load built-ins; custom sinks should be required by your app/module)
-

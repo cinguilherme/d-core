@@ -42,6 +42,24 @@
         (finally
           (ig/halt-key! :d-core.core.consumers.consumer/consumer component))))))
 
+
+(deftest publish-config-does-not-start-consumers
+  (testing "publish targets do not start consumers without subscriptions"
+    (let [queues (make-queues)
+          routing {:topics {:orders {}}
+                   :publish {:orders {:targets [{:producer :kafka-primary
+                                                 :kafka-topic "core.orders"}]}}}
+          logger (:logger (h-logger/make-test-logger))
+          component (ig/init-key :d-core.core.consumers.consumer/consumer
+                                 {:queues queues
+                                  :routing routing
+                                  :default-poll-ms 5
+                                  :logger logger})]
+      (try
+        (is (empty? (:threads component)))
+        (finally
+          (ig/halt-key! :d-core.core.consumers.consumer/consumer component))))))
+
 (deftest in-memory-consumer-handles-default-topic
   (testing "subscription with no topic consumes from :default"
     (let [queues (make-queues)
@@ -76,6 +94,8 @@
                    :subscriptions {:sub {:topic :orders
                                          :handler handler
                                          :source :in-memory
+                                         :deadletter {:max-retries 7
+                                                      :delay-ms 1000}
                                          :schema {:schema [:map {:closed true} [:a :int]]
                                                   :strictness :strict}}}}
           logger (:logger (h-logger/make-test-logger))
@@ -94,7 +114,8 @@
           (let [{:keys [envelope]} (first @dlq-calls)]
             (is (= :orders (get-in envelope [:metadata :dlq :topic])))
             (is (= :poison (get-in envelope [:metadata :dlq :status])))
-            (is (= {:sink :producer :max-retries 3}
-                   (get-in envelope [:metadata :dlq :deadletter])))))
+            (is (= {:sink :producer :max-retries 7 :delay-ms 1000}
+                   (get-in envelope [:metadata :dlq :deadletter])))
+            (is (= :in-memory (get-in envelope [:metadata :dlq :producer])))))
         (finally
           (ig/halt-key! :d-core.core.consumers.consumer/consumer component))))))

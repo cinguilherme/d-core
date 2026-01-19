@@ -29,6 +29,12 @@
     (or (:durable cfg)
         (str "core_" (name topic)))))
 
+(defn- resolve-client
+  [clients client-key]
+  (cond
+    (map? clients) (or (get clients client-key) (get clients :default))
+    :else clients))
+
 (defn- ensure-stream!
   [^JetStreamManagement jsm stream subject]
   (try
@@ -68,8 +74,8 @@
   envelope)
 
 (defn- enrich-jetstream-envelope
-  [{:keys [routing topic subscription-id subject stream durable]} envelope payload status]
-  (let [dl-cfg (routing/deadletter-config routing topic)]
+  [{:keys [routing topic subscription-id subject stream durable client-key]} envelope payload status]
+  (let [dl-cfg (routing/deadletter-config routing topic subscription-id)]
     (dlmeta/enrich-for-deadletter
       (or envelope {:msg nil})
       {:topic topic
@@ -77,7 +83,9 @@
        :runtime :jetstream
        :source {:subject subject
                 :stream stream
-                :durable durable}
+                :durable durable
+                :client client-key}
+       :producer client-key
        :deadletter dl-cfg
        :raw-payload payload
        :status status})))
@@ -153,7 +161,7 @@
                      :error (.getMessage e)})))))
 
 (defn- start-jetstream-subscription!
-  [{:keys [subscription-id js jsm routing codec handler dead-letter stop? logger topic options subscription-schema]}]
+  [{:keys [subscription-id js jsm routing codec handler dead-letter stop? logger topic options subscription-schema client-key]}]
   (future
     (let [options (or options {})
           subject (topic->subject routing topic)
@@ -178,6 +186,7 @@
                      :subject subject
                      :stream stream
                      :durable durable
+                     :client-key client-key
                      :subscription-schema subscription-schema}]
             (while (not @stop?)
               (doseq [^Message m (.fetch sub (int batch) (Duration/ofMillis (long expires-ms)))]
@@ -195,14 +204,23 @@
                       subscriptions)
         threads
         (into {}
-              (map (fn [[subscription-id {:keys [topic handler options schema]
+              (map (fn [[subscription-id {:keys [topic handler options schema client producer]
                                          :or {options {}}}]]
-                     (let [topic (or topic :default)]
+                     (let [topic (or topic :default)
+                           client-key (or client
+                                          producer
+                                          (when (and (map? jetstream) (contains? jetstream :default)) :default))
+                           js-client (resolve-client jetstream client-key)]
+                       (when-not js-client
+                         (throw (ex-info "JetStream subscription client not configured"
+                                         {:subscription-id subscription-id
+                                          :client client-key
+                                          :known (when (map? jetstream) (keys jetstream))})))
                        [subscription-id
                         (start-jetstream-subscription!
                           {:subscription-id subscription-id
-                           :js (:js jetstream)
-                           :jsm (:jsm jetstream)
+                           :js (:js js-client)
+                           :jsm (:jsm js-client)
                            :routing routing
                            :codec codec
                            :handler handler
@@ -211,6 +229,7 @@
                            :logger logger
                            :topic topic
                            :options options
+                           :client-key client-key
                            :subscription-schema schema})])))
               js-subs)]
     {:stop? stop?
@@ -225,4 +244,3 @@
   (doseq [[_id thread] threads]
     (deref thread 1000 nil))
   nil)
-

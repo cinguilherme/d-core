@@ -41,7 +41,7 @@
           routing {:topics {:t {:schema {:canonical [:map {:closed true} [:a :int]]
                                          :strictness :strict
                                          :id :t}}}
-                   :defaults {:source :in-memory}}
+                   :publish {:t {:targets [{:producer :in-memory}]}}}
           producer (common-producer/->CommonProducer :in-memory {:in-memory delegate} routing nil)]
       (is (thrown? clojure.lang.ExceptionInfo
                    (p/produce! producer {:a 1 :extra "x"} {:topic :t})))

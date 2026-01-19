@@ -22,15 +22,23 @@
   [conn stream group redis-id]
   (car/wcar conn (car/xack stream group redis-id)))
 
+(defn- resolve-client
+  [clients client-key]
+  (cond
+    (map? clients) (or (get clients client-key) (get clients :default))
+    :else clients))
+
 (defn- dlq-ctx
-  [{:keys [topic subscription-id stream group consumer-name redis-id dl-cfg raw-payload status]}]
+  [{:keys [topic subscription-id stream group consumer-name redis-id dl-cfg raw-payload status client-key]}]
   {:topic topic
    :subscription-id subscription-id
    :runtime :redis
    :source {:stream stream
             :group group
             :consumer consumer-name
-            :redis-id redis-id}
+            :redis-id redis-id
+            :client client-key}
+   :producer client-key
    :deadletter dl-cfg
    :raw-payload raw-payload
    :status status})
@@ -154,7 +162,7 @@
                      :error (.getMessage ^Throwable e)})))))
 
 (defn- start-redis-subscription!
-  [{:keys [subscription-id conn stream group consumer-name codec handler dead-letter stop? block-ms logger topic routing subscription-schema]}]
+  [{:keys [subscription-id conn stream group consumer-name codec handler dead-letter stop? block-ms logger topic routing subscription-schema client-key]}]
   (future
     (logger/log logger :report ::redis-subscription-started
                 {:id subscription-id :stream stream :group group :consumer consumer-name})
@@ -170,8 +178,9 @@
                :logger logger
                :topic topic
                :routing routing
-               :dl-cfg (routing/deadletter-config routing topic)
-               :subscription-schema subscription-schema}]
+               :dl-cfg (routing/deadletter-config routing topic subscription-id)
+               :subscription-schema subscription-schema
+               :client-key client-key}]
       (while (not @stop?)
         (let [resp (car/wcar conn
                      ;; BLOCK for up to block-ms. COUNT 1 for now.
@@ -194,9 +203,18 @@
                          subscriptions)
         threads
         (into {}
-              (map (fn [[subscription-id {:keys [topic handler options schema]
+              (map (fn [[subscription-id {:keys [topic handler options schema client producer]
                                          :or {options {}}}]]
                      (let [topic (or topic :default)
+                           client-key (or client
+                                          producer
+                                          (when (and (map? redis) (contains? redis :default)) :default))
+                           redis-client (resolve-client redis client-key)
+                           _ (when-not redis-client
+                               (throw (ex-info "Redis subscription client not configured"
+                                               {:subscription-id subscription-id
+                                                :client client-key
+                                                :known (when (map? redis) (keys redis))})))
                            topic-cfg (routing/topic-config routing topic)
                            stream (or (:stream topic-cfg) (str "core:" (name topic)))
                            group (or (:group topic-cfg) "core")
@@ -204,7 +222,7 @@
                            block-ms (or (:block-ms options) 5000)]
                        [subscription-id
                         (start-redis-subscription! {:subscription-id subscription-id
-                                                    :conn (:conn redis)
+                                                    :conn (:conn redis-client)
                                                     :stream stream
                                                     :group group
                                                     :consumer-name consumer-name
@@ -216,6 +234,7 @@
                                                     :logger logger
                                                     :topic topic
                                                     :routing routing
+                                                    :client-key client-key
                                                     :subscription-schema schema})])))
               redis-subs)]
     {:stop? stop?

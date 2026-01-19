@@ -8,7 +8,7 @@
             [d-core.core.messaging.dead-letter :as dl]))
 
 (defn- start-subscription!
-  [{:keys [subscription-id queue poll-ms stop? handler dead-letter logger routing topic subscription-schema]}]
+  [{:keys [subscription-id queue poll-ms stop? handler dead-letter logger routing topic subscription-schema producer-key]}]
   (future
     (logger/log logger :report ::subscription-started {:id subscription-id})
     (while (not @stop?)
@@ -27,7 +27,7 @@
           (catch Exception e
             (logger/log logger :error ::handler-failed {:id subscription-id :error (.getMessage e)})
             (when dead-letter
-              (let [dl-cfg (when routing (routing/deadletter-config routing topic))
+              (let [dl-cfg (when routing (routing/deadletter-config routing topic subscription-id))
                     envelope (dlmeta/enrich-for-deadletter
                                item
                                {:topic topic
@@ -35,6 +35,7 @@
                                 :runtime :in-memory
                                 :source {:topic topic
                                          :subscription-id subscription-id}
+                                :producer producer-key
                                 :deadletter dl-cfg
                                 :status (when (= :schema-invalid (:failure/type (ex-data e))) :poison)})]
                 (dl/send-dead-letter! dead-letter envelope
@@ -57,11 +58,12 @@
                           subscriptions)
         threads
         (into {}
-              (map (fn [[subscription-id {:keys [topic handler options schema]
+              (map (fn [[subscription-id {:keys [topic handler options schema producer client]
                                          :or {options {}}}]]
                      (let [topic (or topic :default)
                            queue (q/get-queue! queues topic)
-                           poll-ms (or (:poll-ms options) default-poll-ms)]
+                           poll-ms (or (:poll-ms options) default-poll-ms)
+                           producer-key (or producer client :in-memory)]
                        [subscription-id
                         (start-subscription! {:subscription-id subscription-id
                                               :queue queue
@@ -72,6 +74,7 @@
                                               :logger logger
                                               :routing routing
                                               :topic topic
+                                              :producer-key producer-key
                                               :subscription-schema schema})])))
               in-mem-subs)]
     {:queues queues

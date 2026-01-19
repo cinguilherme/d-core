@@ -9,30 +9,29 @@
   [routing topic]
   (get-in routing [:topics topic]))
 
-(defn default-source
-  [routing]
-  (get-in routing [:defaults :source] :in-memory))
-
-(defn source-for-topic
+(defn publish-config
   [routing topic]
-  (or (get-in routing [:topics topic :source])
-      (first (get-in routing [:topics topic :sources]))
-      (default-source routing)))
+  (get-in routing [:publish topic]))
 
-(defn sources-for-topic
-  "Returns a vector of producer/source keys for `topic`.
-  Prefers explicit :sources, falls back to single :source, then defaults."
+(defn publish-targets
+  "Returns a vector of publish targets for `topic` (or empty when unset)."
   [routing topic]
-  (let [sources (or (get-in routing [:topics topic :sources])
-                    (get-in routing [:topics topic :source])
-                    (default-source routing))]
-    (vec (if (sequential? sources) sources [sources]))))
+  (let [targets (get-in routing [:publish topic :targets])]
+    (cond
+      (nil? targets) []
+      (sequential? targets) (vec targets)
+      :else [targets])))
+
+(defn subscription-config
+  [routing subscription-id]
+  (get-in routing [:subscriptions subscription-id]))
 
 ;; Dead letter configuration
 ;;
-;; The routing component can define dead letter configuration at two levels:
+;; The routing component can define dead letter configuration at three levels:
 ;; - `[:defaults :deadletter {...}]` (global defaults)
 ;; - `[:topics <topic> :deadletter {...}]` (per-topic overrides)
+;; - `[:subscriptions <id> :deadletter {...}]` (per-subscription overrides)
 ;;
 ;; The dead-letter subsystem uses these settings to choose sink/policy/limits.
 (defn default-deadletter
@@ -41,7 +40,11 @@
 
 (defn deadletter-config
   "Returns the effective dead-letter configuration for `topic` by merging routing
-  defaults with topic overrides."
-  [routing topic]
-  (merge (default-deadletter routing)
-         (get-in routing [:topics topic :deadletter] {})))
+  defaults with topic overrides and subscription overrides (when provided)."
+  ([routing topic]
+   (deadletter-config routing topic nil))
+  ([routing topic subscription-id]
+   (merge (default-deadletter routing)
+          (get-in routing [:topics topic :deadletter] {})
+          (when subscription-id
+            (get-in routing [:subscriptions subscription-id :deadletter] {})))))

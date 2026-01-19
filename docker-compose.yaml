@@ -114,6 +114,13 @@ services:
       KAFKA_NODE_ID: 1
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka-data:9095
       CLUSTER_ID: random-cluster-id-data
+      # Listeners
+      KAFKA_LISTENERS: PLAINTEXT://:9094,PLAINTEXT_HOST://:29094,CONTROLLER://:9095
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-data:9092,PLAINTEXT_HOST://localhost:29094
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
@@ -123,22 +130,6 @@ services:
       KAFKA_LOG_RETENTION_MS: 86400000
       KAFKA_LOG_SEGMENT_BYTES: 1073741824
       KAFKA_LOG_SEGMENT_MS: 86400000
-
-  # NOTE: Datomic image is not supported on arm64
-  # datomic:
-  #   image: akiel/datomic-free:latest
-  #   container_name: datomic
-  #   platform: linux/arm64
-  #   ports:
-  #     - 4334:4334
-  #     - 4335:4335
-  #     - 4336:4336
-  #   environment:
-  #     DATOMIC_ALT_HOST: localhost
-  #     DATOMIC_HOST: datomic
-  #     DATOMIC_DATA_DIR: /data
-  #   volumes:
-  #     - datomic_data:/data
 
   xtdb:
     image: ghcr.io/xtdb/xtdb:latest

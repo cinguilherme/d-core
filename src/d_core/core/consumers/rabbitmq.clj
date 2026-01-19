@@ -56,7 +56,8 @@
 (defn- resolve-client
   [clients client-key]
   (cond
-    (map? clients) (or (get clients client-key) (get clients :default))
+    (and (map? clients) (not (record? clients)))
+    (or (get clients client-key) (get clients :default))
     :else clients))
 
 (defn- dlq-ctx

@@ -42,7 +42,7 @@
                                          :strictness :strict
                                          :id :t}}}
                    :publish {:t {:targets [{:producer :in-memory}]}}}
-          producer (common-producer/->CommonProducer :in-memory {:in-memory delegate} routing nil)]
+          producer (common-producer/->CommonProducer :in-memory {:in-memory delegate} routing nil nil)]
       (is (thrown? clojure.lang.ExceptionInfo
                    (p/produce! producer {:a 1 :extra "x"} {:topic :t})))
       (is (= [] @calls))

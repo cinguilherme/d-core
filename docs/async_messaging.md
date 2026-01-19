@@ -56,6 +56,58 @@ targets:
 Targets are resolved in order. If any target fails, the call fails and the
 whole produce is retried by your caller.
 
+## Deferred delivery (scheduler-backed)
+
+Producers accept deferred delivery options. When `:deliver-at-*` or `:delay-ms`
+is provided, D-core schedules the publish for later instead of publishing now.
+
+Options (resolution order):
+
+- `:deliver-at-time` (java.util.Date / #inst)
+- `:deliver-at-ms` (epoch ms)
+- `:delay-ms` (relative delay in ms)
+
+Example:
+
+```clojure
+(producer/produce! producer {:id 1}
+                   {:topic :order-created
+                    :deliver-at-time #inst "2025-01-01T10:00:00.000-00:00"})
+```
+
+To enable deferred delivery, wire the scheduler component and pass it into the
+common producer. Deferred scheduling requires Quartz JDBCJobStore configuration
+(RAMJobStore is rejected by default).
+
+```clojure
+{:system
+ {:d-core.core.messaging.deferred/scheduler
+  {:producers #ig/ref :d-core.core.producers/registry
+   :quartz {:properties {"org.quartz.threadPool.threadCount" "4"
+                         "org.quartz.jobStore.class" "org.quartz.impl.jdbcjobstore.JobStoreTX"
+                         "org.quartz.jobStore.isClustered" "true"
+                         "org.quartz.jobStore.driverDelegateClass" "org.quartz.impl.jdbcjobstore.PostgreSQLDelegate"
+                         "org.quartz.jobStore.dataSource" "main"
+                         "org.quartz.dataSource.main.connectionProvider.class" "org.quartz.utils.HikariCpPoolingConnectionProvider"
+                         "org.quartz.dataSource.main.driver" "org.postgresql.Driver"
+                         "org.quartz.dataSource.main.URL" "jdbc:postgresql://localhost:5432/d-core"
+                         "org.quartz.dataSource.main.user" "postgres"
+                         "org.quartz.dataSource.main.password" "postgres"
+                         "org.quartz.dataSource.main.maxConnections" "5"}}}
+
+  :d-core.core.producers.common/producer
+  {:producers #ig/ref :d-core.core.producers/registry
+   :routing #ig/ref :d-core.core.messaging/routing
+   :deferred #ig/ref :d-core.core.messaging.deferred/scheduler}}}
+```
+
+If the scheduler component is not configured, deferred options will raise an
+error rather than silently publishing immediately.
+
+Notes:
+- Deferred scheduling requires JDBCJobStore; RAMJobStore is rejected.
+- With JDBCJobStore, the deferred payload and options must be Java-serializable.
+
 ## Consumer wiring
 
 Consumer runtimes filter subscriptions by `:source` only. The client instance

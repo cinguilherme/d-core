@@ -11,6 +11,7 @@ This page tracks what D-Core currently supports, what is planned, and what is ex
 - Producers: in-memory, Redis, Kafka, JetStream/NATS, RabbitMQ
 - Consumers/runtimes: in-memory, Redis Streams, Kafka, JetStream/NATS, RabbitMQ
 - Dead-letter sinks: logger, storage, producer
+- Deferred delivery (Quartz-backed scheduler component)
 
 ### Cache
 

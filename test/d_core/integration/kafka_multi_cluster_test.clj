@@ -57,6 +57,7 @@
                        {:kafka-primary producer-primary
                         :kafka-data producer-data}
                        routing
+                       nil
                        nil)
             msg {:id (str (UUID/randomUUID))
                  :amount 12.5}

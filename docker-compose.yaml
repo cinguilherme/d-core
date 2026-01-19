@@ -41,13 +41,13 @@ services:
       TYPESENSE_API_KEY: typesense
     command: typesense-server --data-dir /data --api-key typesense
 
-  # rabbitmq:
-  #   image: rabbitmq:3-management
-  #   ports:
-  #     - 15672:15672
-  #     - 5672:5672
-  #   volumes:
-  #     - rabbitmq_data:/var/lib/rabbitmq
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - 15672:15672
+      - 5672:5672
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
 
   minio:
     image: minio/minio:latest
@@ -116,6 +116,16 @@ services:
   #   volumes:
   #     - datomic_data:/data
 
+  xtdb:
+    image: ghcr.io/xtdb/xtdb:latest
+    ports:
+      - "6432:5432"   # Postgres wire protocol
+      - "9080:8080"   # health/metrics
+    volumes:
+      - xtdb_data:/var/lib/xtdb
+    # optional, but nice to name it
+    container_name: xtdb
+
 volumes:
   postgres_data:
   redis_data:
@@ -125,5 +135,6 @@ volumes:
   nats_data:
   kafka_data:
   # datomic_data:
-  # rabbitmq_data:
-  # kafka_data:
+  xtdb_data:
+  rabbitmq_data:
+  

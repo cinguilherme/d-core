@@ -18,7 +18,7 @@ It is intentionally **coupled to Integrant and Duct**. The “API surface” is 
   - messaging (routing, producers/consumers, codecs, dead-letter)
   - cache (in-memory + redis-backed)
   - storage (local-disk + minio/s3-style)
-  - clients (redis, kafka, jetstream/nats, sqlite/postgres, datomic, typesense)
+  - clients (redis, kafka, jetstream/nats, sqlite/postgres, datomic (Work in Progress), typesense)
   - http client (policy wrapper: rate-limit, bulkhead, circuit breaker, retries)
   - tracing helpers + Ring middleware
   - simple in-memory queues for local/dev and testing

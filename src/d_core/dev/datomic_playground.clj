@@ -2,9 +2,18 @@
   (:require
    [datomic.api :as d]))
 
-(def db-uri "datomic:dev://localhost:4334/hello")
+(def db-uri "datomic:dev://localhost:5334/hello")
+
+;; this is only working if the transactor is not running, assuming this is basically in local mode
+;; datomic has a sotrage datomic and storage admin password, both are set to datomic. So maybe the URI needs to be adjusted?
+
+(def db-uri "datomic:dev://localhost:4334/d-core")
+
 
 (d/create-database db-uri)
+
+(def db-uri-secure "datomic:dev://localhost:4334/d-core?password=datomic")
+(d/create-database db-uri-secure)
 
 (def conn (d/connect db-uri))
 
@@ -23,4 +32,4 @@
 
 (d/q '[:find ?e :where [?e :user/name]] (d/db conn))
 (d/pull (d/db conn) [:user/name] 1)
-(d/pull-many (d/db conn) [:user/name] [1 2])
+(d/pull-many (d/db conn) [:user/name] [1 2 3 4])

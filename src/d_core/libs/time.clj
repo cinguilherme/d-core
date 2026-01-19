@@ -1,4 +1,5 @@
 (ns d-core.libs.time
+  (:require [integrant.core :as ig])
   (:import [java.time Clock Instant ZoneId Duration]
            [java.time.temporal ChronoUnit]))
 
@@ -196,3 +197,7 @@
         end-inst (coerce-instant end)]
     (and (not (.isBefore inst start-inst))
          (not (.isAfter inst end-inst)))))
+
+(defmethod ig/init-key :d-core.libs.time/clock
+  [_ opts]
+  (new-clock (merge {:type :system :zone "UTC"} (or opts {}))))

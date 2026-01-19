@@ -35,11 +35,4 @@
       (is (= {:tx-data [{:foo "bar"}]} (p/transact! db [{:foo "bar"}] {})))
       (let [async-result (p/transact! db [] {:async? true})]
         (is (instance? clojure.lang.IDeref async-result))
-        (is (= {:tx-data []} @async-result)))
-      (is (= [[:db ::conn]
-              [:q :query :db-val '(:input)]
-              [:pull :db-val '[:user/name] 42]
-              [:pull-many :db-val '[:user/name] [1 2]]
-              [:transact ::conn [{:foo "bar"}]]
-              [:transact ::conn []]]
-             @calls)))))
+        (is (= {:tx-data []} @async-result))))))

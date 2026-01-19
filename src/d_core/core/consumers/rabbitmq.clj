@@ -250,7 +250,7 @@
             (.close channel)
             (catch Exception _e
               nil))
-          (logger/log logger :report ::rabbitmq-subscription-stopped {:id subscription-id})))))))
+          (logger/log logger :report ::rabbitmq-subscription-stopped {:id subscription-id}))))))
 
 (defmethod ig/init-key :d-core.core.consumers.rabbitmq/runtime
   [_ {:keys [rabbitmq routing codec dead-letter logger]}]

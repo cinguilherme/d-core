@@ -40,6 +40,9 @@
         
         ;; JSON dependencies
         cheshire/cheshire {:mvn/version "5.13.0"}
+
+        ;; GraphQL (Lacinia)
+        com.walmartlabs/lacinia {:mvn/version "1.2.1"}
         
         ;; HTTP dependencies
         clj-http/clj-http {:mvn/version "3.12.3"}

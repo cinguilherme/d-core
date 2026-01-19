@@ -44,6 +44,12 @@ This page tracks what D-Core currently supports, what is planned, and what is ex
 - Context helpers (`d-core.tracing`)
 - Ring middleware (`:d-core.core.tracing.http/middleware`)
 
+### GraphQL
+
+- Dedicated GraphQL server (Lacinia)
+- GraphiQL endpoint (optional)
+- Subscriptions via graphql-transport-ws (optional)
+
 ### Scheduling
 
 - Cron tasks (Quartz-backed scheduler component)

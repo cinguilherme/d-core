@@ -52,6 +52,9 @@
 
         ;; RabbitMQ dependencies
         com.rabbitmq/amqp-client {:mvn/version "5.20.0"}
+
+        ;; Memcached dependencies
+        net.spy/spymemcached {:mvn/version "2.12.3"}
 }
 
  :aliases

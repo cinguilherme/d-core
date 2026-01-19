@@ -4,22 +4,43 @@
             [d-core.core.cache.protocol :as p]
             [d-core.core.clients.redis.client]))
 
+(defn redis-get
+  [redis-client key]
+  (car/wcar (:conn redis-client)
+    (car/get key)))
+
+(defn redis-set
+  [redis-client key value]
+  (car/wcar (:conn redis-client)
+    (car/set key value)))
+
+(defn redis-setex
+  [redis-client key ttl value]
+  (car/wcar (:conn redis-client)
+    (car/setex key ttl value)))
+
+(defn redis-del
+  [redis-client key]
+  (car/wcar (:conn redis-client)
+    (car/del key)))
+
+(defn redis-flushdb
+  [redis-client]
+  (car/wcar (:conn redis-client)
+    (car/flushdb)))
+
 (defrecord RedisCache [redis-client]
   p/CacheProtocol
   (cache-lookup [_ key _opts]
-    (car/wcar (:conn redis-client)
-      (car/get key)))
+    (redis-get redis-client key))
   (cache-put [_ key value opts]
-    (car/wcar (:conn redis-client)
-      (if-let [ttl (:ttl opts)]
-        (car/setex key ttl value)
-        (car/set key value))))
+    (if-let [ttl (:ttl opts)]
+      (redis-setex redis-client key ttl value)
+      (redis-set redis-client key value)))
   (cache-delete [_ key _opts]
-    (car/wcar (:conn redis-client)
-      (car/del key)))
+    (redis-del redis-client key))
   (cache-clear [_ _opts]
-    (car/wcar (:conn redis-client)
-      (car/flushdb))))
+    (redis-flushdb redis-client)))
 
 (defmethod ig/init-key :d-core.core.cache.redis/redis
   [_ {:keys [redis-client]}]

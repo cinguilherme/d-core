@@ -16,6 +16,7 @@ This page tracks what D-Core currently supports, what is planned, and what is ex
 
 - In-memory
 - Redis-backed
+- Memcached-backed
 - Common cache facade (select default via config)
 
 ### Storage
@@ -30,6 +31,7 @@ This page tracks what D-Core currently supports, what is planned, and what is ex
 - Kafka
 - JetStream/NATS
 - RabbitMQ
+- Memcached
 - SQLite
 - Postgres
 - Datomic

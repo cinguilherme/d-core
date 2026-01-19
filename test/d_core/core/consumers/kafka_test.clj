@@ -19,14 +19,15 @@
 
 (defn- make-test-ctx
   "Creates a minimal context map for process-record! testing."
-  [& {:keys [codec handler subscription-schema logger dead-letter routing]
+  [& {:keys [codec handler subscription-schema logger dead-letter routing client-key]
       :or {codec (h-codec/make-test-codec (fn [_] {:msg "test"}))
            handler identity
            subscription-schema nil
            logger (:logger (h-logger/make-test-logger))  ; Default test logger
            dead-letter nil
            routing {:topics {:test {}}
-                    :defaults {}}}}]
+                    :defaults {}}
+           client-key :kafka-primary}}]
   {:subscription-id :test-sub
    :kafka {:bootstrap-servers "localhost:29092"}
    :routing routing
@@ -37,6 +38,7 @@
    :topic :test
    :kafka-topic "core.test"
    :group-id "test-group"
+   :client-key client-key
    :subscription-schema subscription-schema})
 
 ;; Tests for process-record!
@@ -278,6 +280,8 @@
           (is (= :test (get-in envelope [:metadata :dlq :topic])))
           (is (= :test-sub (get-in envelope [:metadata :dlq :subscription-id])))
           (is (= :kafka (get-in envelope [:metadata :dlq :runtime])))
+          (is (= :kafka-primary (get-in envelope [:metadata :dlq :producer])))
+          (is (= :kafka-primary (get-in envelope [:metadata :dlq :source :client])))
           ;; Check Kafka-specific source metadata
           (is (= "core.test" (get-in envelope [:metadata :dlq :source :kafka-topic])))
           (is (= "test-group" (get-in envelope [:metadata :dlq :source :group-id])))

@@ -80,3 +80,10 @@
       (is (thrown? clojure.lang.ExceptionInfo
                    (p/produce! producer {:id 1} {:topic :orders})))
       (is (= [:a :b] (mapv :id @calls))))))
+
+(deftest common-producer-requires-publish-targets
+  (testing "missing publish targets throws a clear error"
+    (let [producer (common-producer/->CommonProducer :in-memory {} {:publish {}} nil)]
+      (is (thrown? clojure.lang.ExceptionInfo
+                   (p/produce! producer {:id 1} {:topic :orders}))))))
+

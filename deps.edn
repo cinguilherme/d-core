@@ -49,6 +49,9 @@
         
         ;; Kafka dependencies
         org.apache.kafka/kafka-clients {:mvn/version "3.6.1"}
+
+        ;; RabbitMQ dependencies
+        com.rabbitmq/amqp-client {:mvn/version "5.20.0"}
 }
 
  :aliases

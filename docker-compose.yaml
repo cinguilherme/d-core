@@ -100,7 +100,7 @@ services:
       KAFKA_LOG_SEGMENT_BYTES: 1073741824
       KAFKA_LOG_SEGMENT_MS: 86400000
 
-  kafka-data: #kafka-data is used for the kafka broker and controller and it has no relation with the kafka container
+  kafka-data: # Second independent Kafka broker/controller (KRaft) forming its own cluster, used for multi-cluster testing and not related to the 'kafka' service.
     image: confluentinc/cp-kafka:7.6.1
     ports:
       - 9094:9092

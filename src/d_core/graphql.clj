@@ -58,22 +58,28 @@
   [status message]
   (json-response status {:errors [{:message message}]}))
 
+(def ^:private default-graphiql-assets
+  {:react "https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.production.min.js"
+   :react-dom "https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.production.min.js"
+   :graphiql-css "https://cdn.jsdelivr.net/npm/graphiql@2.4.7/graphiql.min.css"
+   :graphiql-js "https://cdn.jsdelivr.net/npm/graphiql@2.4.7/graphiql.min.js"})
+
 (defn- graphiql-html
-  [graphql-path]
+  [graphql-path {:keys [react react-dom graphiql-css graphiql-js]}]
   (str "<!DOCTYPE html>"
        "<html>"
        "<head>"
        "<meta charset=\"utf-8\"/>"
        "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"/>"
        "<title>GraphiQL</title>"
-       "<link rel=\"stylesheet\" href=\"https://unpkg.com/graphiql/graphiql.min.css\"/>"
+       "<link rel=\"stylesheet\" href=\"" graphiql-css "\"/>"
        "<style>body,html,#graphiql{height:100%;margin:0;width:100%;}</style>"
        "</head>"
        "<body>"
        "<div id=\"graphiql\">Loading...</div>"
-       "<script crossorigin src=\"https://unpkg.com/react/umd/react.production.min.js\"></script>"
-       "<script crossorigin src=\"https://unpkg.com/react-dom/umd/react-dom.production.min.js\"></script>"
-       "<script crossorigin src=\"https://unpkg.com/graphiql/graphiql.min.js\"></script>"
+       "<script crossorigin src=\"" react "\"></script>"
+       "<script crossorigin src=\"" react-dom "\"></script>"
+       "<script crossorigin src=\"" graphiql-js "\"></script>"
        "<script>"
        "const graphQLFetcher = (params) => fetch('" graphql-path "', {"
        "method: 'post', headers: {'Content-Type': 'application/json'},"
@@ -89,36 +95,40 @@
   (or (get params k)
       (get params (keyword k))))
 
+(defn- graphql-request-get
+  [req]
+  (let [params (merge (:query-params req) (:params req))
+        query (extract-params params "query")
+        variables (extract-params params "variables")
+        operation-name (extract-params params "operationName")]
+    {:query query
+     :variables (normalize-variables variables)
+     :operation-name operation-name}))
+
+(defn- graphql-request-post
+  [req]
+  (let [raw (body->string (:body req))]
+    (if (str/blank? raw)
+      {:error "Request body is empty."}
+      (let [{:keys [error value]} (parse-json raw)]
+        (if error
+          {:error (str "Invalid JSON body: " error)}
+          (let [query (or (:query value) (get value "query"))
+                variables (or (:variables value) (get value "variables"))
+                operation-name (or (:operationName value)
+                                   (:operation-name value)
+                                   (get value "operationName"))]
+            {:query query
+             :variables (normalize-variables variables)
+             :operation-name operation-name}))))))
+
 (defn- graphql-request
   [req]
   (try
     (case (:request-method req)
-      :get
-      (let [params (merge (:query-params req) (:params req))
-            query (extract-params params "query")
-            variables (extract-params params "variables")
-            operation-name (extract-params params "operationName")]
-        {:query query
-         :variables (normalize-variables variables)
-         :operation-name operation-name})
-
-      :post
-      (let [raw (body->string (:body req))]
-        (if (str/blank? raw)
-          {:error "Request body is empty."}
-          (let [{:keys [error value]} (parse-json raw)]
-            (if error
-              {:error (str "Invalid JSON body: " error)}
-              (let [query (or (:query value) (get value "query"))
-                    variables (or (:variables value) (get value "variables"))
-                    operation-name (or (:operationName value)
-                                       (:operation-name value)
-                                       (get value "operationName"))]
-                {:query query
-                 :variables (normalize-variables variables)
-                 :operation-name operation-name}))))))
-
-    {:error "Unsupported HTTP method."}
+      :get (graphql-request-get req)
+      :post (graphql-request-post req)
+      {:error "Unsupported HTTP method."})
     (catch Exception e
       {:error (str "Invalid variables JSON: " (ex-message e))})))
 
@@ -280,9 +290,20 @@
       (some #(= ws-protocol %) (map str/trim (str/split header #",")))
       true)))
 
+(defn- websocket-upgrade-request?
+  [req]
+  (let [upgrade (some-> (get-in req [:headers "upgrade"]) str/lower-case)
+        connection (some-> (get-in req [:headers "connection"]) str/lower-case)
+        connection-tokens (when connection
+                            (map str/trim (str/split connection #",")))]
+    (and (= :get (:request-method req))
+         (= "websocket" upgrade)
+         (some #{"upgrade"} connection-tokens))))
+
 (defn- maybe-handle-ws
   [req {:keys [ws-protocol] :as opts}]
-  (when (websocket-protocol-allowed? req ws-protocol)
+  (when (and (websocket-upgrade-request? req)
+             (websocket-protocol-allowed? req ws-protocol))
     (when-let [ws (http/websocket-connection req {:protocols [ws-protocol]})]
       (d/let-flow [conn ws]
         (handle-graphql-transport-ws conn opts)
@@ -309,7 +330,7 @@
           (error-response 500 (ex-message e)))))))
 
 (defmethod ig/init-key :d-core.graphql/handler
-  [_ {:keys [schema logger graphql-path graphiql? graphiql-path subscriptions? ws-protocol
+  [_ {:keys [schema logger graphql-path graphiql? graphiql-path graphiql-assets subscriptions? ws-protocol
              context context-fn execute]
       :or {graphql-path default-graphql-path
            graphiql-path default-graphiql-path
@@ -317,7 +338,8 @@
            subscriptions? true
            ws-protocol default-ws-protocol}}]
   (let [compiled-schema (compile-schema schema)
-        execute (or execute default-execute)]
+        execute (or execute default-execute)
+        assets (merge default-graphiql-assets graphiql-assets)]
     (when logger
       (logger/log logger :info ::graphql-handler-initialized
                   {:path graphql-path
@@ -347,7 +369,7 @@
         (and graphiql? (= (:uri req) graphiql-path))
         {:status 200
          :headers {"content-type" "text/html; charset=utf-8"}
-         :body (graphiql-html graphql-path)}
+         :body (graphiql-html graphql-path assets)}
 
         :else
         {:status 404

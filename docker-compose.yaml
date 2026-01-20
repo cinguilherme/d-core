@@ -20,6 +20,31 @@ services:
     volumes:
       - redis_data:/data
 
+  tile38:
+    image: tile38/tile38:latest
+    ports:
+      - 9851:9851
+    volumes:
+      - tile38_data:/data
+    environment:
+      TILE38_PASSWORD: tile38
+    command: tile38-server /data --password tile38
+
+  # open-street-map:
+  #   image: overv/openstreetmap-tile-server
+  #   ports:
+  #     - 8080:8080
+  #   volumes:
+  #     - open-street-map_data:/data
+  #   environment:
+  #     UPDATES_ENABLED: enabled
+  #     UPDATE_URL: http://download.geofabrik.de/europe/monaco-latest.osm.pbf
+  #     TILE_DIR: /data
+  #     TILE_STYLE: /data/style.yaml
+  #     TILE_ZOOM: 12
+  #     TILE_MIN_ZOOM: 1
+  #     TILE_MAX_ZOOM: 12
+
   memcached:
     image: memcached:1.6-alpine
     ports:
@@ -153,4 +178,5 @@ volumes:
   # datomic_data:
   xtdb_data:
   rabbitmq_data:
-  
+  tile38_data:
+  # open-street-map_data:

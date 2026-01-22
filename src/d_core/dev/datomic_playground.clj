@@ -2,7 +2,7 @@
   (:require
    [datomic.api :as d]))
 
-(def db-uri "datomic:dev://localhost:5334/hello")
+#_(def db-uri "datomic:dev://localhost:5334/hello")
 
 ;; this is only working if the transactor is not running, assuming this is basically in local mode
 ;; datomic has a sotrage datomic and storage admin password, both are set to datomic. So maybe the URI needs to be adjusted?

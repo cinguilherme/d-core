@@ -27,7 +27,7 @@
 
 (defn- ensure-topology!
   [channel {:keys [exchange exchange-type queue routing-key durable? exclusive? auto-delete?]}]
-  (when (and exchange (not (empty? exchange)))
+  (when (seq exchange)
     (.exchangeDeclare channel exchange (or exchange-type "direct")
                       (boolean durable?)
                       (boolean auto-delete?)
@@ -38,7 +38,7 @@
                    (boolean exclusive?)
                    (boolean auto-delete?)
                    nil)
-    (when (and exchange (not (empty? exchange)) routing-key)
+    (when (and (seq exchange) routing-key)
       (.queueBind channel queue exchange routing-key))))
 
 (defn- validate-subscription!

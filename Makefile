@@ -1,7 +1,7 @@
 lint:
-	clj-kondo --lint src
+	clojure -M:lint --lint src
 
-test:
+tests:
 	clojure -M:test
 
 build:

@@ -305,9 +305,10 @@
   (when (and (websocket-upgrade-request? req)
              (websocket-protocol-allowed? req ws-protocol))
     (when-let [ws (http/websocket-connection req {:protocols [ws-protocol]})]
-      (d/let-flow [conn ws]
-        (handle-graphql-transport-ws conn opts)
-        conn))))
+      (d/chain ws
+               (fn [conn]
+                 (handle-graphql-transport-ws conn opts)
+                 conn)))))
 
 (defn- handle-graphql-http
   [{:keys [schema execute context context-fn]} req]

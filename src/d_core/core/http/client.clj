@@ -143,7 +143,7 @@
       (when-not (.tryAcquire semaphore)
         (throw (ex-info "Bulkhead full" {:type ::bulkhead-full})))
       (when-not (.tryAcquire semaphore timeout-ms TimeUnit/MILLISECONDS)
-        (throw (ex-info "Bulkhead timeout" {:type ::bulkhead-timeout})))))))
+        (throw (ex-info "Bulkhead timeout" {:type ::bulkhead-timeout}))))))
 
 (defn- bulkhead-release!
   [{:keys [semaphore]}]

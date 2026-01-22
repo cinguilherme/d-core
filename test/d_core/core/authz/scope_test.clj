@@ -29,7 +29,7 @@
 (deftest scope-authorizer-denies-tenant-mismatch
   (testing "Denies when tenant does not match"
     (let [authorizer (scope/->ScopeAuthorizer nil)
-          principal {:tenant-id :tenant-1
+          principal {:tenant-id "tenant-1"
                      :scopes #{"messages:read"}}
           decision (p/authorize authorizer principal
                                 {:tenant "tenant-2"

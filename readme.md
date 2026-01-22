@@ -195,3 +195,7 @@ See `docs/supported.md`.
 ### Dead letters
 
 See `docs/dead_letters.md`.
+
+### LLM Guide
+
+See `readme-llm.md`.

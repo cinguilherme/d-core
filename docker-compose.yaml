@@ -85,6 +85,18 @@ services:
       MINIO_ROOT_PASSWORD: minio123
     command: server /data --console-address ":9001"
 
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0.4
+    ports:
+      - 8080:8080
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+    command: ["start-dev", "--import-realm"]
+    volumes:
+      - keycloak_data:/opt/keycloak/data
+      - ./docker/keycloak/realm-d-core.json:/opt/keycloak/data/import/realm-d-core.json
+
   nats:
     image: nats:2.10-alpine
     ports:
@@ -179,4 +191,5 @@ volumes:
   xtdb_data:
   rabbitmq_data:
   tile38_data:
+  keycloak_data:
   # open-street-map_data:

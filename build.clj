@@ -8,6 +8,9 @@
 (def basis (b/create-basis {:project "deps.edn"}))
 (def jar-file (format "target/%s-%s.jar" (name lib) version))
 
+(defn pom-path []
+  (b/pom-path {:lib lib :class-dir class-dir}))
+
 (defn clean [_]
   (b/delete {:path "target"}))
 
@@ -38,4 +41,5 @@
   (jar nil)
   (dd/deploy {:installer :remote
               :sign-releases? false
-              :artifact jar-file}))
+              :artifact jar-file
+              :pom-file (pom-path)}))

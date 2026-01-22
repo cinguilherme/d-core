@@ -198,4 +198,4 @@ See `docs/dead_letters.md`.
 
 ### LLM Guide
 
-See `readme-llm.md`.
+See `readme-llm.md`. (in your repo, make a copy of this file and name it `readme-llm.md` and make your agent aware that it needs this context to be able to answer questions about D-Core)

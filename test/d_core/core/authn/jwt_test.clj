@@ -132,3 +132,36 @@
         (is false "Expected exception")
         (catch clojure.lang.ExceptionInfo ex
           (is (= ::jwt/token-expired (:type (ex-data ex)))))))))
+
+(deftest jwks-cache-refresh-is-single-flight
+  (testing "Only one fetch occurs when cache is stale and requests race"
+    (let [counter (atom 0)
+          state (atom nil)
+          start (promise)
+          jwks {:keys [{:kty "RSA" :kid "kid" :n "n" :e "e"}]}
+          opts {:jwks-uri "http://jwks"
+                :jwks-cache-ttl-ms 60000
+                :http-opts {}
+                :state state}]
+      (with-redefs [jwt/fetch-jwks (fn [_ _]
+                                    (swap! counter inc)
+                                    (Thread/sleep 100)
+                                    jwks)]
+        (let [futs (doall (repeatedly 8 #(future @start (#'jwt/get-jwks opts))))]
+          (deliver start true)
+          (doseq [f futs]
+            (is (= jwks @f)))
+          (is (= 1 @counter)))))))
+
+(deftest jwks-cache-uses-fresh-value
+  (testing "Fresh cache avoids fetch"
+    (let [now (System/currentTimeMillis)
+          jwks {:keys [{:kty "RSA" :kid "kid" :n "n" :e "e"}]}
+          state (atom {:jwks jwks :fetched-at now})
+          opts {:jwks-uri "http://jwks"
+                :jwks-cache-ttl-ms 60000
+                :http-opts {}
+                :state state}]
+      (with-redefs [jwt/fetch-jwks (fn [_ _]
+                                    (throw (ex-info "should not fetch" {})))]
+        (is (= jwks (#'jwt/get-jwks opts)))))))

@@ -65,6 +65,34 @@
                        :status (:status resp)})))
     (json/parse-string (:body resp) true)))
 
+(defn- cache-fresh?
+  [snapshot now ttl-ms]
+  (let [{:keys [jwks fetched-at]} snapshot]
+    (and jwks fetched-at (< (- now fetched-at) ttl-ms))))
+
+(defn- await-inflight
+  [p]
+  (let [result @p]
+    (if (instance? Throwable result)
+      (throw result)
+      result)))
+
+(defn- refresh-jwks!
+  [state current snapshot jwks-uri http-opts now]
+  (let [p (promise)
+        next-state (assoc snapshot :inflight p)]
+    (if (compare-and-set! state current next-state)
+      (try
+        (let [fresh (fetch-jwks jwks-uri http-opts)]
+          (deliver p fresh)
+          (reset! state {:jwks fresh :fetched-at now})
+          fresh)
+        (catch Exception ex
+          (deliver p ex)
+          (swap! state dissoc :inflight)
+          (throw ex)))
+      ::retry)))
+
 (defn- get-jwks
   [{:keys [jwks jwks-uri jwks-cache-ttl-ms http-opts state]}]
   (if jwks
@@ -73,17 +101,24 @@
       (when-not jwks-uri
         (throw (ex-info "jwks-uri is required when jwks is not provided"
                         {:type ::missing-jwks-uri})))
-      (let [ttl-ms (long (or jwks-cache-ttl-ms 300000))
-            now (now-ms)]
-        (if-let [{:keys [jwks fetched-at]} @state]
-          (if (< (- now fetched-at) ttl-ms)
-            jwks
-            (let [fresh (fetch-jwks jwks-uri http-opts)]
-              (reset! state {:jwks fresh :fetched-at now})
-              fresh))
-          (let [fresh (fetch-jwks jwks-uri http-opts)]
-            (reset! state {:jwks fresh :fetched-at now})
-            fresh))))))
+      (let [ttl-ms (long (or jwks-cache-ttl-ms 300000))]
+        (loop []
+          (let [current @state
+                snapshot (or current {})
+                now (now-ms)
+                cached-jwks (:jwks snapshot)]
+            (cond
+              (cache-fresh? snapshot now ttl-ms)
+              cached-jwks
+
+              (:inflight snapshot)
+              (await-inflight (:inflight snapshot))
+
+              :else
+              (let [result (refresh-jwks! state current snapshot jwks-uri http-opts now)]
+                (if (= ::retry result)
+                  (recur)
+                  result)))))))))
 
 (defn- match-issuer?
   [claims issuer]

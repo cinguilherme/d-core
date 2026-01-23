@@ -155,9 +155,9 @@ services:
   kafka-data: # Second independent Kafka broker/controller (KRaft) forming its own cluster, used for multi-cluster testing and not related to the 'kafka' service.
     image: confluentinc/cp-kafka:7.6.1
     ports:
-      - 9094:9092
-      - 29094:29092
-      - 9095:9093
+      - 9094:9094
+      - 29094:29094
+      - 9095:9095
     volumes:
       - kafka-data_data:/var/lib/kafka/data
     environment:
@@ -168,7 +168,7 @@ services:
       CLUSTER_ID: random-cluster-id-data
       # Listeners
       KAFKA_LISTENERS: PLAINTEXT://:9094,PLAINTEXT_HOST://:29094,CONTROLLER://:9095
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-data:9092,PLAINTEXT_HOST://localhost:29094
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-data:9094,PLAINTEXT_HOST://localhost:29094
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT

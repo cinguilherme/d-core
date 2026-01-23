@@ -26,7 +26,10 @@
                                 trace (assoc :trace trace))
                     :produced-at (System/currentTimeMillis)}
           payload (codec/encode codec envelope)
-          bytes (.getBytes (str payload) "UTF-8")
+          bytes (cond
+                  (bytes? payload) payload
+                  (string? payload) (.getBytes ^String payload "UTF-8")
+                  :else (.getBytes (pr-str payload) "UTF-8"))
           headers (:headers options)]
       (logger/log logger :info ::producing-message {:topic topic :kafka-topic kafka-topic :trace trace})
       (let [md (kc/send! kafka-client {:topic kafka-topic
@@ -43,4 +46,3 @@
 (defmethod ig/init-key :d-core.core.producers.kafka/producer
   [_ {:keys [kafka routing codec logger]}]
   (->KafkaProducer kafka routing codec logger))
-

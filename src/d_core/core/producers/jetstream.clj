@@ -50,7 +50,10 @@
                                 trace (assoc :trace trace))
                     :produced-at (System/currentTimeMillis)}
           payload (codec/encode codec envelope)
-          bytes (.getBytes (str payload) "UTF-8")
+          bytes (cond
+                  (bytes? payload) payload
+                  (string? payload) (.getBytes ^String payload "UTF-8")
+                  :else (.getBytes (pr-str payload) "UTF-8"))
           ^JetStream js (-> jetstream-client :js)
           ^JetStreamManagement jsm (-> jetstream-client :jsm)]
       (ensure-stream! jsm stream subject)
@@ -66,4 +69,3 @@
 (defmethod ig/init-key :d-core.core.producers.jetstream/producer
   [_ {:keys [jetstream routing codec logger]}]
   (->JetStreamProducer jetstream routing codec logger))
-

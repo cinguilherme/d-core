@@ -44,6 +44,13 @@ This page tracks what D-Core currently supports, what is planned, and what is ex
 - Context helpers (`d-core.tracing`)
 - Ring middleware (`:d-core.core.tracing.http/middleware`)
 
+### Authentication and Authorization
+
+- JWT/OIDC authenticator (`:d-core.core.authn.jwt/authenticator`)
+- Scope-based authorizer (`:d-core.core.authz.scope/authorizer`)
+- Ring middleware (`:d-core.core.auth.http/*`)
+- Token client helpers (`:d-core.core.auth/token-client`)
+
 ### GraphQL
 
 - Dedicated GraphQL server (Lacinia)

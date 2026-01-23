@@ -17,6 +17,7 @@ This page tracks what D-Core currently supports, what is planned, and what is ex
 
 - In-memory
 - Redis-backed
+- Valkey-backed
 - Memcached-backed
 - Common cache facade (select default via config)
 
@@ -29,6 +30,7 @@ This page tracks what D-Core currently supports, what is planned, and what is ex
 ### Clients
 
 - Redis
+- Valkey
 - Kafka
 - JetStream/NATS
 - RabbitMQ

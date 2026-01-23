@@ -20,6 +20,13 @@ services:
     volumes:
       - redis_data:/data
 
+  valkey:
+    image: valkey/valkey:7-alpine
+    ports:
+      - 6380:6379
+    volumes:
+      - valkey_data:/data
+
   tile38:
     image: tile38/tile38:latest
     ports:
@@ -106,6 +113,14 @@ services:
     volumes:
       - nats_data:/data
 
+  sqs:
+    image: roribio16/alpine-sqs
+    ports:
+      - 9324:9324
+      - 9325:9325
+    volumes:
+      - /opt/alpine-sqs:/opt/custom
+
   kafka:
     image: confluentinc/cp-kafka:7.6.1
     ports:
@@ -181,6 +196,7 @@ services:
 volumes:
   postgres_data:
   redis_data:
+  valkey_data:
   memcached_data:
   minio_data:
   typesense_data:

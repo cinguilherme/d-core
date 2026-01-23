@@ -1,9 +1,64 @@
 (ns d-core.core.messaging.routing
-  (:require [integrant.core :as ig]))
+  (:require [integrant.core :as ig]
+            [d-core.tracing :as tracing]))
+
+(defn- deep-merge
+  "Recursively merges maps. Non-map values on the right overwrite."
+  [& xs]
+  (letfn [(dm [a b]
+            (if (and (map? a) (map? b))
+              (merge-with dm a b)
+              b))]
+    (reduce dm {} xs)))
+
+(defn- wrap-handler
+  [handler-fn]
+  (fn [envelope]
+    (let [parent (some-> (get-in envelope [:metadata :trace]) tracing/decode-ctx)
+          ctx (tracing/child-ctx parent)]
+      (tracing/with-ctx ctx
+        (handler-fn envelope)))))
+
+(defn- resolve-subscriptions
+  [subs handlers]
+  (let [handlers (or handlers {})]
+    (into {}
+          (map (fn [[id sub]]
+                 (let [h (:handler sub)]
+                   (cond
+                     (fn? h)
+                     [id (update sub :handler wrap-handler)]
+
+                     (and (keyword? h) (contains? handlers h))
+                     [id (assoc sub :handler (wrap-handler (get handlers h)))]
+
+                     :else
+                     (throw (ex-info "Subscription handler must be a function or a known handler key"
+                                     {:subscription id
+                                      :handler h
+                                      :known-handlers (keys handlers)}))))))
+          (or subs {}))))
 
 (defmethod ig/init-key :d-core.core.messaging/routing
   [_ routing]
-  routing)
+  (let [routing (or routing {})]
+    (cond
+      (and (map? routing) (contains? routing :default-routing))
+      (let [{:keys [default-routing overrides]} routing
+            default-routing (or default-routing {})
+            overrides (or overrides {})
+            handlers (merge (:handlers default-routing) (:handlers overrides))
+            merged (-> (deep-merge default-routing (dissoc overrides :handlers))
+                       (assoc :handlers handlers))]
+        (if (contains? merged :subscriptions)
+          (update merged :subscriptions #(resolve-subscriptions % handlers))
+          merged))
+
+      (and (map? routing) (contains? routing :subscriptions))
+      (update routing :subscriptions #(resolve-subscriptions % (:handlers routing)))
+
+      :else
+      routing)))
 
 (defn topic-config
   [routing topic]

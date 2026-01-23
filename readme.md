@@ -18,6 +18,7 @@ It is intentionally **coupled to Integrant and Duct**. The “API surface” is 
   - messaging (routing, producers/consumers, codecs, dead-letter)
   - cache (in-memory + redis/valkey/memcached-backed)
   - storage (local-disk + minio/s3-style)
+  - cryptography (simple AES + storage-backed key material)
   - clients (redis/valkey, memcached, sqs, kafka, jetstream/nats, sqlite/postgres, datomic (Work in Progress), typesense, rabbitmq)
   - http client (policy wrapper: rate-limit, bulkhead, circuit breaker, retries)
   - graphql server (Lacinia + optional GraphiQL + subscriptions)
@@ -93,6 +94,35 @@ Example (illustrative):
 
   ;; rest of d-core keys: clients, producers, consumers, cache, storage...
   }}
+```
+
+### Cryptography
+
+d-core ships a small `CriptographyProtocol` abstraction with two implementations:
+
+- `:d-core.core.criptography/simple` expects a pre-built `javax.crypto.SecretKey` (useful for tests/local).
+- `:d-core.core.criptography/storage` loads key material from any `StorageProtocol` backend (local disk, MinIO, S3, etc).
+
+Storage-backed crypto uses AES/GCM and expects key material as **base64** by default. The ciphertext is raw bytes with the IV prepended, so for async messaging you will typically wrap it with a codec (base64, hex, etc.) for transport.
+
+Example config (storage-backed):
+
+```edn
+{:system
+ {:d-core.core.storage/local-disk {:root-path "storage"}
+  :d-core.core.criptography/storage {:storage #ig/ref :d-core.core.storage/local-disk
+                                     :key-path "keys/app.key"
+                                     :encoding :base64 ;; or :utf8 if you store raw bytes as string
+                                     :algorithm "AES"}}}
+```
+
+Example usage:
+
+```clj
+(require '[d-core.core.criptography.protocol :as crypto])
+
+(def encrypted (crypto/encrypt my-crypto "payload"))
+(def decrypted (crypto/decrypt my-crypto encrypted))
 ```
 
 HTTP client example (illustrative):

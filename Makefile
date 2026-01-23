@@ -1,3 +1,5 @@
+BUMP ?= patch
+
 lint:
 	clojure -M:lint --lint src
 
@@ -11,4 +13,13 @@ build:
 	clojure -T:build jar
 
 publish:
-	clojure -T:build deploy
+	clojure -T:build publish :bump :$(BUMP)
+
+publish-major:
+	$(MAKE) publish BUMP=major
+
+publish-minor:
+	$(MAKE) publish BUMP=minor
+
+publish-patch:
+	$(MAKE) publish BUMP=patch

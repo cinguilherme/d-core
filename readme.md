@@ -18,7 +18,7 @@ It is intentionally **coupled to Integrant and Duct**. The “API surface” is 
   - messaging (routing, producers/consumers, codecs, dead-letter)
   - cache (in-memory + redis/valkey/memcached-backed)
   - storage (local-disk + minio/s3-style)
-  - clients (redis/valkey, memcached, kafka, jetstream/nats, sqlite/postgres, datomic (Work in Progress), typesense, rabbitmq)
+  - clients (redis/valkey, memcached, sqs, kafka, jetstream/nats, sqlite/postgres, datomic (Work in Progress), typesense, rabbitmq)
   - http client (policy wrapper: rate-limit, bulkhead, circuit breaker, retries)
   - graphql server (Lacinia + optional GraphiQL + subscriptions)
   - metrics (Prometheus registry + scrape server)

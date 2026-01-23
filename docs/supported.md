@@ -9,7 +9,7 @@ This page tracks what D-Core currently supports, what is planned, and what is ex
 - Routing facade (Integrant key + helpers)
 - Codecs: EDN, JSON
 - Producers: in-memory, Redis, Kafka, JetStream/NATS, RabbitMQ
-- Consumers/runtimes: in-memory, Redis Streams, Kafka, JetStream/NATS, RabbitMQ
+- Consumers/runtimes: in-memory, Redis Streams, Kafka, JetStream/NATS, RabbitMQ, SQS
 - Dead-letter sinks: logger, storage, producer
 - Deferred delivery (Quartz-backed scheduler component)
 
@@ -31,6 +31,7 @@ This page tracks what D-Core currently supports, what is planned, and what is ex
 
 - Redis
 - Valkey
+- SQS
 - Kafka
 - JetStream/NATS
 - RabbitMQ

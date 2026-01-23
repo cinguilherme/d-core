@@ -4,6 +4,9 @@ lint:
 tests:
 	clojure -M:test
 
+integration-tests:
+	INTEGRATION=1 clojure -M:test
+
 build:
 	clojure -T:build jar
 

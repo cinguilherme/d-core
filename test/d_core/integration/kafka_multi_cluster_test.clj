@@ -11,7 +11,8 @@
 
 (defn- integration-enabled?
   []
-  (some? (System/getenv "DCORE_INTEGRATION")))
+  (or (some? (System/getenv "INTEGRATION"))
+      (some? (System/getenv "DCORE_INTEGRATION"))))
 
 (defn- bootstrap
   [env-key default]
@@ -36,7 +37,7 @@
 (deftest produce-to-multiple-kafka-clusters
   (testing "single produce fans out to two Kafka clusters"
     (if-not (integration-enabled?)
-      (is true "Skipping Kafka integration test; set DCORE_INTEGRATION=1")
+      (is true "Skipping Kafka integration test; set INTEGRATION=1")
       (let [primary-bs (bootstrap "DCORE_KAFKA_PRIMARY" "localhost:29092")
             data-bs (bootstrap "DCORE_KAFKA_DATA" "localhost:9094")
             topic-primary (str "dcore.int.orders." (UUID/randomUUID))

@@ -7,7 +7,8 @@
 
 (defn- integration-enabled?
   []
-  (or (some? (System/getenv "DCORE_INTEGRATION"))
+  (or (some? (System/getenv "INTEGRATION"))
+      (some? (System/getenv "DCORE_INTEGRATION"))
       (some? (System/getenv "DCORE_INTEGRATION_VALKEY"))))
 
 (defn- valkey-uri
@@ -18,7 +19,7 @@
 (deftest valkey-cache-basic-ops
   (testing "put/get/delete/clear roundtrip"
     (if-not (integration-enabled?)
-      (is true "Skipping Valkey integration test; set DCORE_INTEGRATION=1")
+      (is true "Skipping Valkey integration test; set INTEGRATION=1")
       (let [client (vc/make-client {:uri (valkey-uri)})
             cache (valkey/->ValkeyCache client)
             base-key (str "dcore.int.valkey." (UUID/randomUUID))

@@ -41,10 +41,12 @@
 
 (defn- request-opts
   [client opts]
-  (let [default-parse? (= :json (:output client))]
+  (let [output (if (contains? opts :output) (:output opts) (:output client))
+        default-parse? (= :json output)]
     {:parse-json? (if (contains? opts :parse-json?)
                     (:parse-json? opts)
-                    default-parse?)}))
+                    default-parse?)
+     :output output}))
 
 (defn- command-token
   [command]
@@ -55,16 +57,27 @@
       :else (str command))))
 
 ;; Tile38 speaks Redis protocol, so we enqueue raw commands via Carmine.
+(defn- output-command
+  [output]
+  (case output
+    :json ["OUTPUT" "JSON"]
+    :resp ["OUTPUT" "RESP"]
+    nil))
+
 (defn- request!
   [client command args opts]
   (let [cmd (command-token command)
         req (into [cmd] args)
+        {:keys [parse-json? output]} (request-opts client opts)
+        output-req (output-command output)
         resp (car/wcar (:conn client)
+               (when output-req
+                 (car-commands/enqueue-request 0 output-req))
                (car-commands/enqueue-request 0 req))
-        {:keys [parse-json?]} (request-opts client opts)]
+        reply (if (vector? resp) (last resp) resp)]
     (if parse-json?
-      (maybe-parse-json resp)
-      resp)))
+      (maybe-parse-json reply)
+      reply)))
 
 (defn- fields->args
   [fields]
@@ -203,7 +216,7 @@
                match (conj "MATCH" match)
                limit (conj "LIMIT" limit)
                true (conj "POINT" lat lon)
-               (some? radius) (conj "RADIUS" radius))]
+               (some? radius) (conj radius))]
     (request! client "NEARBY" args opts)))
 
 (defn- shape-args

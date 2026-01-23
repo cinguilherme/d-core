@@ -46,7 +46,7 @@
     (logger/log logger :report ::subscription-stopped {:id subscription-id})))
 
 (defmethod ig/init-key :d-core.core.consumers.consumer/consumer
-  [_ {:keys [queues routing redis-runtime jetstream-runtime kafka-runtime rabbitmq-runtime dead-letter default-poll-ms logger]
+  [_ {:keys [queues routing redis-runtime jetstream-runtime kafka-runtime rabbitmq-runtime sqs-runtime dead-letter default-poll-ms logger]
       :or {default-poll-ms 100}}]
   (let [stop? (atom false)
         ;; Subscriptions come from the shared routing component.
@@ -84,6 +84,7 @@
      :jetstream-runtime jetstream-runtime
      :kafka-runtime kafka-runtime
      :rabbitmq-runtime rabbitmq-runtime
+     :sqs-runtime sqs-runtime
      :dead-letter dead-letter
      :default-poll-ms default-poll-ms
      :stop? stop?

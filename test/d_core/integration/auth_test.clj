@@ -10,7 +10,8 @@
 
 (defn- integration-enabled?
   []
-  (or (some? (System/getenv "DCORE_INTEGRATION"))
+  (or (some? (System/getenv "INTEGRATION"))
+      (some? (System/getenv "DCORE_INTEGRATION"))
       (some? (System/getenv "DCORE_INTEGRATION_AUTH"))))
 
 (defn- keycloak-url
@@ -72,7 +73,7 @@
 (deftest keycloak-jwt-authentication
   (testing "JWT authenticator verifies and normalizes user token"
     (if-not (integration-enabled?)
-      (is true "Skipping Keycloak integration test; set DCORE_INTEGRATION=1")
+      (is true "Skipping Keycloak integration test; set INTEGRATION=1")
       (let [token (user-token)
             result (authn/authenticate (authenticator)
                                        {:headers {"authorization" (str "Bearer " token)}}
@@ -86,7 +87,7 @@
 (deftest keycloak-service-token
   (testing "Client credentials flow yields verifiable token"
     (if-not (integration-enabled?)
-      (is true "Skipping Keycloak integration test; set DCORE_INTEGRATION=1")
+      (is true "Skipping Keycloak integration test; set INTEGRATION=1")
       (let [token (service-token)
             principal (authn/verify-token (authenticator) token {})]
         (is (= "tenant-1" (:tenant-id principal)))
@@ -96,7 +97,7 @@
 (deftest keycloak-http-middleware
   (testing "Authentication + authorization middleware works with real tokens"
     (if-not (integration-enabled?)
-      (is true "Skipping Keycloak integration test; set DCORE_INTEGRATION=1")
+      (is true "Skipping Keycloak integration test; set INTEGRATION=1")
       (let [token (user-token)
             authorizer (scope/->ScopeAuthorizer nil)
             handler (fn [_] {:status 200})

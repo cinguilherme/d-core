@@ -124,6 +124,51 @@ is chosen by `:client` (or `:producer`):
 No subscription is started for publish-only topics unless explicitly listed in
 `:subscriptions`.
 
+### Subscription handler resolution
+
+` :d-core.core.messaging/routing` resolves handlers during Integrant init:
+
+- `:handler` may be a function or a keyword.
+- If a keyword is provided, it is looked up in `:handlers`.
+- All resolved handlers are wrapped with tracing (`:metadata :trace` is decoded
+  and bound to `d-core.tracing/*ctx*` for the duration of the handler).
+
+You can supply routing in two ways:
+
+1) **Plain routing map** (existing behavior):
+
+```edn
+{:my-app.config.messaging/routing
+ {:handlers {:orders-handler #ig/ref :my-app.handlers/orders}
+  :topics {:orders {}}
+  :subscriptions {:orders-worker {:topic :orders
+                                  :source :kafka
+                                  :client :kafka-primary
+                                  :handler :orders-handler}}}
+
+ :d-core.core.messaging/routing #ig/ref :my-app.config.messaging/routing}
+```
+
+2) **Default routing + overrides** (new, deep-merge friendly):
+
+```edn
+{:my-app.config.messaging/routing
+ {:default-routing {:topics {:orders {}}
+                    :subscriptions {:orders-worker {:topic :orders
+                                                    :source :kafka
+                                                    :handler :orders-handler}}}
+  :overrides {:handlers {:orders-handler #ig/ref :my-app.handlers/orders}
+              ;; override any part of routing (subscriptions, topics, defaults, etc)
+              :subscriptions {:orders-worker {:client :kafka-primary}}}}
+
+ :d-core.core.messaging/routing #ig/ref :my-app.config.messaging/routing}
+```
+
+Notes:
+- `:default-routing` and `:overrides` are deep-merged; non-map values on the
+  right overwrite.
+- `:handlers` are merged from both maps; a keyword handler can live in either.
+
 ## Multi-cluster clients
 
 Clients are named by the application developer. Example Kafka clients:

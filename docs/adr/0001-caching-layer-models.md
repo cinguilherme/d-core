@@ -69,6 +69,42 @@ latency, and operational complexity.
 - Replays can overwhelm cache writers without rate controls.
 - Out-of-order or duplicated events can corrupt cache without idempotency.
 
+#### CDC design (v1: Postgres outbox / trigger-queue)
+
+```
+┌──────────────┐   INSERT/UPDATE/DELETE   ┌──────────────────┐
+│ Application  │────────────────────────▶│  Business Tables │
+└──────┬───────┘                          └────────┬─────────┘
+       │                                         (TRIGGER)
+       │                                           │
+       │                                           ▼
+       │                                   ┌──────────────────┐
+       │                                   │   Outbox Table   │
+       │                                   │ (event envelope) │
+       │                                   └────────┬─────────┘
+       │                                            │
+       │                                   Poll/Consume (batch)
+       │                                            │
+       ▼                                            ▼
+┌──────────────────┐                       ┌──────────────────┐
+│ D-core Consumer  │──────────────────────▶│ Cache Sync Logic │
+└──────────────────┘                       └──────────────────┘
+```
+
+Notes:
+- The trigger writes a minimal event envelope per change (op, table, pk, payload).
+- The consumer reads in batches and marks events as processed or deletes them.
+- This approach avoids logical replication but requires schema + trigger setup.
+
+#### Write amplification considerations
+
+- Each write to a business table generates an additional outbox write (and often
+  secondary index writes). This can double or triple write I/O under load.
+- Outbox growth increases VACUUM pressure and can impact query performance if
+  retention/cleanup is not aggressive.
+- Mitigations: keep the outbox payload minimal, batch deletes, partition by
+  time, and use scheduled cleanup jobs with bounded lag.
+
 ## Decision
 
 Support multiple cache models in D-core, exposed through configuration and
@@ -105,7 +141,8 @@ Illustrative config shape (exact keys TBD):
 ## Scope (v1)
 
 - Support cache model selection via configuration.
-- CDC scope: Postgres SQS only, with a Postgres consumer strategy to be defined.
+- CDC scope: Postgres SQS (outbox/trigger-queue) only, with a Postgres consumer
+  strategy to be defined.
 - Invalidation defaults: cache-aside prefers TTL; other models prefer explicit
   invalidation with optional TTL backstop.
 - Testing: validate CDC streaming, out-of-order updates, and recovery using the
@@ -129,7 +166,7 @@ Illustrative config shape (exact keys TBD):
   (cache-aside favors TTL, others favor explicit with optional TTL backstop).
 - How to express consistency expectations in config (per-cache or per-key
   class).
-- CDC scope for v1: Postgres SQS. Open: consumer strategy for a Postgres source
-  inside D-core.
+- CDC scope for v1: Postgres SQS (outbox/trigger-queue). Open: consumer strategy
+  for a Postgres source inside D-core.
 - Testing strategy: extend docker-compose coverage to validate CDC streaming,
   out-of-order updates, and recovery scenarios.

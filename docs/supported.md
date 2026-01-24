@@ -16,6 +16,7 @@ This page tracks what D-Core currently supports, what is planned, and what is ex
 ### Cache
 
 - In-memory
+- Local file (filesystem-backed)
 - Redis-backed
 - Valkey-backed
 - Memcached-backed

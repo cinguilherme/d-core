@@ -16,7 +16,7 @@ It is intentionally **coupled to Integrant and Duct**. The “API surface” is 
 
 - **Integrant components** for common app infrastructure:
   - messaging (routing, producers/consumers, codecs, dead-letter)
-  - cache (in-memory + redis/valkey/memcached-backed)
+ - cache (in-memory + local-file + redis/valkey/memcached-backed)
   - storage (local-disk + minio/s3-style)
   - cryptography (simple AES + storage-backed key material)
   - clients (redis/valkey, memcached, sqs, kafka, jetstream/nats, sqlite/postgres, datomic (Work in Progress), typesense, rabbitmq)
@@ -99,6 +99,20 @@ Example (illustrative):
 ### Cache
 
 All cache backends implement `CacheProtocol` and can be composed. For single-cache routing, use `:d-core.core.cache.common/common`.
+
+#### Local file cache (filesystem-backed)
+
+`d-core.core.cache.local-file` stores values on disk under a root path, using one data file plus an `.meta.edn` sidecar per key. It supports `:ttl-ms` (or `:ttl` + `:ttl-unit`) and preserves bytes, strings, and EDN values.
+
+Example config:
+
+```edn
+{:system
+ {:d-core.core.cache.local-file/local-file {:root-path "cache"
+                                            :logger #ig/ref :duct/logger}}}
+```
+
+Container note: when running in Docker/Kubernetes, `:root-path` should point at a mounted volume (bind mount, named volume, or PVC) so cache data persists across container restarts and the directory is writable by the app user.
 
 #### Layered cache (composite tiers)
 

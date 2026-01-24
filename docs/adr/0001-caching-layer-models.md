@@ -1,7 +1,7 @@
 # ADR 0001: Caching Layer Models
 
 Date: 2026-01-24
-Status: Proposed
+Status: Accepted
 
 ## Context
 
@@ -83,6 +83,45 @@ model.
 - Different cache models will have different failure modes; observability must
   surface those (lag, staleness, error rates).
 - Implementations will likely need distinct operational playbooks.
+
+## Config Sketch
+
+Illustrative config shape (exact keys TBD):
+
+```edn
+{:d-core/cache
+ {:model :cache-aside
+  :consistency {:staleness-ms 5000
+                :read-your-writes? false}
+  :invalidation {:mode :ttl
+                 :ttl-ms 60000
+                 :explicit? false}
+  :write-behind {:queue :messaging/cache-writes
+                 :max-lag-ms 10000}
+  :cdc {:source :postgres-sqs
+        :consumer :tbd}}}
+```
+
+## Scope (v1)
+
+- Support cache model selection via configuration.
+- CDC scope: Postgres SQS only, with a Postgres consumer strategy to be defined.
+- Invalidation defaults: cache-aside prefers TTL; other models prefer explicit
+  invalidation with optional TTL backstop.
+- Testing: validate CDC streaming, out-of-order updates, and recovery using the
+  docker-compose environment.
+
+## Non-goals
+
+- Query-result caching (joins/sorts/pagination) as a first-class feature.
+- Automatic CDC provisioning or schema management beyond minimal requirements.
+- Strong global consistency guarantees across regions/environments.
+
+## Next Steps
+
+- Define the cache protocol contract for consistency and invalidation semantics.
+- Add a Postgres CDC consumer strategy and integration path in D-core.
+- Extend docker-compose tests for CDC streaming, ordering, and recovery.
 
 ## Open Questions
 

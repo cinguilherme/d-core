@@ -1,7 +1,13 @@
 (ns d-core.core.cache.layered
-  (:require [integrant.core :as ig]
+  (:require [clojure.edn :as edn]
+            [integrant.core :as ig]
             [duct.logger :as logger]
-            [d-core.core.cache.protocol :as p]))
+            [d-core.core.cache.protocol :as p]
+            [d-core.core.codecs.protocol :as codec]
+            [d-core.core.compression.protocol :as compression]))
+
+(import (java.io ByteArrayOutputStream)
+        (java.nio ByteBuffer))
 
 (defn- safe-log
   [l level event data]
@@ -11,6 +17,60 @@
 (defn- miss?
   [layered value]
   (or (nil? value) (= value (:miss layered))))
+
+(def ^:private chunk-header-bytes
+  (.getBytes "DCORE_CHUNKED\0" "UTF-8"))
+
+(defn- byte-buffer->bytes
+  [^ByteBuffer buf]
+  (let [dup (.duplicate buf)
+        arr (byte-array (.remaining dup))]
+    (.get dup arr)
+    arr))
+
+(defn- payload->bytes
+  [payload]
+  (cond
+    (nil? payload) nil
+    (bytes? payload) payload
+    (instance? ByteBuffer payload) (byte-buffer->bytes payload)
+    (string? payload) (.getBytes ^String payload "UTF-8")
+    :else nil))
+
+(defn- has-chunk-header?
+  [^bytes bytes]
+  (let [hlen (alength ^bytes chunk-header-bytes)]
+    (when (and bytes (>= (alength bytes) hlen))
+      (loop [idx 0]
+        (cond
+          (= idx hlen) true
+          (= (aget ^bytes bytes idx) (aget ^bytes chunk-header-bytes idx)) (recur (inc idx))
+          :else false)))))
+
+(defn- chunk-manifest-bytes
+  [manifest]
+  (let [payload (.getBytes (pr-str manifest) "UTF-8")
+        out (ByteArrayOutputStream.)]
+    (.write out ^bytes chunk-header-bytes)
+    (.write out ^bytes payload)
+    (.toByteArray out)))
+
+(defn- parse-chunk-manifest
+  [^bytes bytes]
+  (let [hlen (alength ^bytes chunk-header-bytes)
+        payload (String. ^bytes bytes hlen (- (alength bytes) hlen) "UTF-8")]
+    (edn/read-string payload)))
+
+(defn- chunk-key
+  [key idx]
+  (str key "::chunk/" idx))
+
+(defn- concat-bytes
+  [chunks]
+  (let [out (ByteArrayOutputStream.)]
+    (doseq [^bytes chunk chunks]
+      (.write out chunk))
+    (.toByteArray out)))
 
 (defn- ttl-ms
   [ttl ttl-unit]
@@ -78,6 +138,53 @@
   (let [ttl-ms (ttl-ms-from opts tier)]
     (merge (clean-opts opts) (ttl->client tier ttl-ms))))
 
+(defn- encode-value
+  [tier value]
+  (if-let [c (:codec tier)]
+    (codec/encode c value)
+    value))
+
+(defn- decode-value
+  [tier payload]
+  (if-let [c (:codec tier)]
+    (codec/decode c payload)
+    payload))
+
+(defn- compress-bytes
+  [tier bytes]
+  (if-let [c (:compressor tier)]
+    (compression/compress c bytes)
+    bytes))
+
+(defn- decompress-bytes
+  [tier bytes]
+  (if-let [c (:compressor tier)]
+    (compression/decompress c bytes)
+    bytes))
+
+(defn- chunk-size
+  [tier]
+  (or (:chunk-bytes tier) (:max-value-bytes tier)))
+
+(defn- max-bytes
+  [tier]
+  (or (:max-value-bytes tier) (:chunk-bytes tier)))
+
+(defn- prepare-bytes
+  [tier value]
+  (let [encoded (encode-value tier value)
+        needs-bytes? (or (:compressor tier)
+                         (:max-value-bytes tier)
+                         (:chunk-bytes tier))
+        bytes (when needs-bytes?
+                (or (payload->bytes encoded)
+                    (throw (ex-info "Tier requires byte-serializable values"
+                                    {:tier (:id tier)
+                                     :value-type (type encoded)}))))
+        compressed (when bytes (compress-bytes tier bytes))]
+    {:encoded encoded
+     :bytes compressed}))
+
 (defn- read-enabled?
   [tier]
   (not (false? (get tier :read? true))))
@@ -117,18 +224,95 @@
     (satisfies? p/CacheProtocol source) (p/cache-delete source key opts)
     :else nil))
 
+(defn- write-chunked!
+  [tier key bytes opts]
+  (let [chunk-bytes (chunk-size tier)
+        total (alength ^bytes bytes)
+        chunk-count (int (Math/ceil (/ (double total) (double chunk-bytes))))
+        manifest {:chunked? true
+                  :chunks chunk-count
+                  :chunk-bytes chunk-bytes
+                  :bytes total}
+        tier-opts (cache-opts opts tier)]
+    (p/cache-put (:cache tier) key (chunk-manifest-bytes manifest) tier-opts)
+    (dotimes [idx chunk-count]
+      (let [start (* idx chunk-bytes)
+            end (min total (+ start chunk-bytes))
+            chunk (java.util.Arrays/copyOfRange ^bytes bytes start end)]
+        (p/cache-put (:cache tier) (chunk-key key idx) chunk tier-opts)))))
+
+(defn- read-chunked
+  [tier key manifest opts]
+  (let [chunks (:chunks manifest)]
+    (when (and (integer? chunks) (pos? chunks))
+      (let [cache-opts (clean-opts opts)
+            chunk-bytes (for [idx (range chunks)]
+                          (let [chunk (p/cache-lookup (:cache tier) (chunk-key key idx) cache-opts)]
+                            (payload->bytes chunk)))]
+        (when (every? some? chunk-bytes)
+          (concat-bytes chunk-bytes))))))
+
+(defn- write-to-tier
+  [tier key value opts]
+  (let [{:keys [encoded bytes]} (prepare-bytes tier value)
+        max-bytes (max-bytes tier)
+        size (when bytes (alength ^bytes bytes))]
+    (cond
+      (and max-bytes size (> size max-bytes) (chunk-size tier))
+      (write-chunked! tier key bytes opts)
+
+      bytes
+      (p/cache-put (:cache tier) key bytes (cache-opts opts tier))
+
+      :else
+      (p/cache-put (:cache tier) key encoded (cache-opts opts tier)))))
+
+(defn- read-from-tier
+  [tier key opts]
+  (let [cache-opts (clean-opts opts)
+        payload (p/cache-lookup (:cache tier) key cache-opts)]
+    (when-not (nil? payload)
+      (let [payload-bytes (payload->bytes payload)]
+        (if (and payload-bytes (has-chunk-header? payload-bytes))
+          (let [manifest (parse-chunk-manifest payload-bytes)
+                chunked (and (map? manifest) (:chunked? manifest))
+                bytes (when chunked (read-chunked tier key manifest opts))]
+            (when bytes
+              (let [decompressed (decompress-bytes tier bytes)]
+                (decode-value tier decompressed))))
+          (let [value (if-let [c (:compressor tier)]
+                        (let [bytes (or payload-bytes
+                                        (throw (ex-info "Compressed payload is not byte-addressable"
+                                                        {:tier (:id tier)})))
+                              decompressed (compression/decompress c bytes)]
+                          (decode-value tier decompressed))
+                        (decode-value tier payload))]
+            value))))))
+
+(defn- delete-chunked
+  [tier key opts]
+  (let [cache-opts (clean-opts opts)
+        payload (p/cache-lookup (:cache tier) key cache-opts)
+        payload-bytes (payload->bytes payload)]
+    (when (and payload-bytes (has-chunk-header? payload-bytes))
+      (let [manifest (parse-chunk-manifest payload-bytes)
+            chunks (:chunks manifest)]
+        (when (and (integer? chunks) (pos? chunks))
+          (doseq [idx (range chunks)]
+            (p/cache-delete (:cache tier) (chunk-key key idx) cache-opts)))))))
+
 (defn- promote-tiers
   [layered tiers key value opts]
   (doseq [tier tiers
           :when (and (promote-enabled? tier) (write-enabled? tier))]
-    (p/cache-put (:cache tier) key value (cache-opts opts tier)))
+    (write-to-tier tier key value opts))
   value)
 
 (defn- write-tiers
   [layered tiers key value opts]
   (doseq [tier tiers
           :when (write-enabled? tier)]
-    (p/cache-put (:cache tier) key value (cache-opts opts tier)))
+    (write-to-tier tier key value opts))
   value)
 
 (defrecord LayeredCache [tiers source write-strategy miss logger]
@@ -140,7 +324,7 @@
              visited []]
         (if-let [tier (first remaining)]
           (if (read-enabled? tier)
-            (let [value (p/cache-lookup (:cache tier) key cache-opts)]
+            (let [value (read-from-tier tier key cache-opts)]
               (if (miss? this value)
                 (recur (rest remaining) (conj visited tier))
                 (do
@@ -174,6 +358,7 @@
     (let [opts (or opts {})]
       (doseq [tier tiers
               :when (write-enabled? tier)]
+        (delete-chunked tier key opts)
         (p/cache-delete (:cache tier) key (clean-opts opts)))
       (source-delete source key opts)
       nil))

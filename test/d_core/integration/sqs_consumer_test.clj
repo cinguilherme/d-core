@@ -4,7 +4,7 @@
             [d-core.helpers.logger :as h-logger]
             [d-core.core.clients.sqs.client :as sqs]
             [d-core.core.consumers.sqs :as sqs-consumer]
-            [d-core.core.messaging.codecs.edn :as edn-codec]
+            [d-core.core.codecs.edn :as edn-codec]
             [d-core.core.messaging.codec :as codec])
   (:import (java.util UUID)))
 

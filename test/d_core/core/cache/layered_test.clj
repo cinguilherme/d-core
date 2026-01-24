@@ -2,6 +2,9 @@
   (:require [clojure.test :refer [deftest is testing]]
             [d-core.core.cache.layered :as layered]
             [d-core.core.cache.protocol :as p]
+            [d-core.core.cache.in-memory :as in-memory]
+            [d-core.core.codecs.bytes :as bytes-codec]
+            [d-core.core.compression.gzip :as gzip]
             [d-core.helpers.logger :as h-logger]))
 
 (defn- make-cache
@@ -76,3 +79,38 @@
       (is (= [{:op :source-write :key :k :value :value :opts {}}
               {:cache :a :op :put :key :k :value :value :opts {:ttl 3}}]
              @calls)))))
+
+(deftest layered-cache-chunking-roundtrip
+  (testing "Layered cache chunks large byte payloads per tier"
+    (let [data (byte-array (map byte (range 64)))
+          mem (in-memory/->InMemoryCache (atom {}) nil)
+          codec (bytes-codec/->BytesCodec)
+          c (layered/->LayeredCache [{:id :mem
+                                      :cache mem
+                                      :codec codec
+                                      :max-value-bytes 16
+                                      :chunk-bytes 16}]
+                                    nil
+                                    :write-through
+                                    ::layered/miss
+                                    nil)]
+      (p/cache-put c :blob data nil)
+      (is (= (seq data) (seq (p/cache-lookup c :blob nil)))))))
+
+(deftest layered-cache-compression-roundtrip
+  (testing "Layered cache compresses and decompresses payloads"
+    (let [data (byte-array 128)
+          _ (.nextBytes (java.util.Random. 42) data)
+          mem (in-memory/->InMemoryCache (atom {}) nil)
+          codec (bytes-codec/->BytesCodec)
+          compressor (gzip/->GzipCompression)
+          c (layered/->LayeredCache [{:id :mem
+                                      :cache mem
+                                      :codec codec
+                                      :compressor compressor}]
+                                    nil
+                                    :write-through
+                                    ::layered/miss
+                                    nil)]
+      (p/cache-put c :blob data nil)
+      (is (= (seq data) (seq (p/cache-lookup c :blob nil)))))))

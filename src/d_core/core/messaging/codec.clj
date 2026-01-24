@@ -1,16 +1,11 @@
 (ns d-core.core.messaging.codec
-  (:require [integrant.core :as ig]))
+  (:require [integrant.core :as ig]
+            [d-core.core.codecs.protocol :as codec]))
 
-(defprotocol Codec
-  (encode [codec value] "Encode a Clojure value (envelope/map) into a transport representation (string/bytes).")
-  (decode [codec payload] "Decode a transport representation (string/bytes) back into a Clojure value."))
-
-(defrecord PipelineCodec [codecs]
-  Codec
-  (encode [_ value]
-    (reduce (fn [v c] (encode c v)) value codecs))
-  (decode [_ payload]
-    (reduce (fn [v c] (decode c v)) payload (reverse codecs))))
+(def Codec codec/Codec)
+(def encode codec/encode)
+(def decode codec/decode)
+(def ->PipelineCodec codec/->PipelineCodec)
 
 (defmethod ig/init-key :d-core.core.messaging/codec
   [_ {:keys [codecs codec]
@@ -19,7 +14,6 @@
   ;; - {:codec <single-codec>} or
   ;; - {:codecs [<codec1> <codec2> ...]} for a pipeline.
   (cond
-    (sequential? codecs) (->PipelineCodec codecs)
+    (sequential? codecs) (codec/->PipelineCodec codecs)
     codec codec
     :else (throw (ex-info "Codec component requires :codec or :codecs" {}))))
-

@@ -109,6 +109,8 @@ Key points:
 - **`nil` is treated as a miss** (cached `nil` values are not supported).
 - Per-tier TTL coercion can be customized via `:ttl-unit` or `:ttl-coerce`.
 - `:write-strategy` supports `:write-through` and `:write-around`.
+- Per-tier `:codec` and `:compressor` allow encoding/decoding + gzip compression.
+- Large values can be sharded with `:max-value-bytes` and `:chunk-bytes` (tier-only).
 
 Example config:
 

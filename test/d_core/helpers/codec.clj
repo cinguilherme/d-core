@@ -1,5 +1,5 @@
 (ns d-core.helpers.codec
-  (:require [d-core.core.messaging.codec :as codec]))
+  (:require [d-core.core.codecs.protocol :as codec]))
 
 ;; Test fixtures and helpers
 

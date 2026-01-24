@@ -1,5 +1,6 @@
 (ns d-core.integration.layered-cache-test
   (:require [clojure.test :refer [deftest is testing]]
+            [clojure.edn :as edn]
             [integrant.core :as ig]
             [d-core.helpers.logger :as h-logger]
             [d-core.core.cache.layered :as layered]
@@ -8,7 +9,12 @@
             [d-core.core.clients.redis]
             [d-core.core.cache.redis]
             [d-core.core.cache.in-memory]
-            [d-core.core.storage.minio])
+            [d-core.core.storage.minio]
+            [d-core.core.codecs.protocol :as codec]
+            [d-core.core.codecs.edn :as edn-codec]
+            [d-core.core.codecs.bytes :as bytes-codec]
+            [d-core.core.compression.protocol :as compression]
+            [d-core.core.compression.gzip :as gzip])
   (:import (java.util UUID)))
 
 (defn- integration-enabled?
@@ -51,6 +57,36 @@
         (if (< (System/currentTimeMillis) deadline)
           (do (Thread/sleep 20) (recur))
           false)))))
+
+(defn- payload->bytes
+  [payload]
+  (cond
+    (bytes? payload) payload
+    (instance? java.nio.ByteBuffer payload) (let [dup (.duplicate ^java.nio.ByteBuffer payload)
+                                                  arr (byte-array (.remaining dup))]
+                                              (.get dup arr)
+                                              arr)
+    (string? payload) (.getBytes ^String payload "UTF-8")
+    :else nil))
+
+(def ^:private chunk-header-bytes
+  (.getBytes "DCORE_CHUNKED\0" "UTF-8"))
+
+(defn- has-chunk-header?
+  [^bytes bytes]
+  (let [hlen (alength ^bytes chunk-header-bytes)]
+    (when (and bytes (>= (alength bytes) hlen))
+      (loop [idx 0]
+        (cond
+          (= idx hlen) true
+          (= (aget ^bytes bytes idx) (aget ^bytes chunk-header-bytes idx)) (recur (inc idx))
+          :else false)))))
+
+(defn- parse-chunk-manifest
+  [^bytes bytes]
+  (let [hlen (alength ^bytes chunk-header-bytes)
+        payload (String. ^bytes bytes hlen (- (alength bytes) hlen) "UTF-8")]
+    (edn/read-string payload)))
 
 (defn- init-system
   [logger]
@@ -221,3 +257,92 @@
 (deftest integration-layered-cache-write-back-pending
   (testing "Write-back strategy pending implementation"
     (is true "Pending: add write-back integration test once strategy is implemented")))
+
+(deftest integration-layered-cache-chunking-compression-roundtrip
+  (testing "Layered cache chunks and compresses large payloads, then restores them"
+    (if-not (integration-enabled?)
+      (is true "Skipping layered cache integration test; set INTEGRATION=1")
+      (let [logger (:logger (h-logger/make-test-logger))
+            system (init-system logger)
+            redis (:d-core.core.cache.redis/redis system)
+            codec (edn-codec/->EdnCodec)
+            compressor (gzip/->GzipCompression)
+            cache (layered/->LayeredCache [{:id :redis
+                                            :cache redis
+                                            :codec codec
+                                            :compressor compressor
+                                            :max-value-bytes 10
+                                            :chunk-bytes 10}]
+                                          nil
+                                          :write-through
+                                          ::layered/miss
+                                          logger)
+            base-key (str "dcore.int.layered." (UUID/randomUUID))
+            key1 (str base-key ":chunked")
+            random-bytes (byte-array 128)
+            _ (.nextBytes (java.util.Random. 42) random-bytes)
+            payload {:payload (.encodeToString (java.util.Base64/getEncoder) random-bytes)}
+            encoded (codec/encode codec payload)
+            encoded-bytes (.getBytes ^String encoded "UTF-8")
+            compressed (compression/compress compressor encoded-bytes)
+            expected-chunks (int (Math/ceil (/ (double (alength ^bytes compressed)) 10.0)))]
+        (try
+          (p/cache-put cache key1 payload nil)
+          (let [raw (p/cache-lookup redis key1 nil)
+                raw-bytes (payload->bytes raw)]
+            (is (bytes? raw-bytes))
+            (is (has-chunk-header? raw-bytes))
+            (let [manifest (parse-chunk-manifest raw-bytes)]
+              (is (= expected-chunks (:chunks manifest)))
+              (doseq [idx (range (:chunks manifest))]
+                (let [chunk (p/cache-lookup redis (str key1 "::chunk/" idx) nil)
+                      chunk-bytes (payload->bytes chunk)]
+                  (is (bytes? chunk-bytes))
+                  (is (<= (alength ^bytes chunk-bytes) 10))))))
+          (is (= payload (p/cache-lookup cache key1 nil)))
+          (finally
+            (p/cache-delete cache key1 nil)
+            (ig/halt! system)))))))
+
+(deftest integration-layered-cache-chunking-compression-bytes
+  (testing "Layered cache chunks and compresses raw bytes payloads"
+    (if-not (integration-enabled?)
+      (is true "Skipping layered cache integration test; set INTEGRATION=1")
+      (let [logger (:logger (h-logger/make-test-logger))
+            system (init-system logger)
+            redis (:d-core.core.cache.redis/redis system)
+            codec (bytes-codec/->BytesCodec)
+            compressor (gzip/->GzipCompression)
+            cache (layered/->LayeredCache [{:id :redis
+                                            :cache redis
+                                            :codec codec
+                                            :compressor compressor
+                                            :max-value-bytes 10
+                                            :chunk-bytes 10}]
+                                          nil
+                                          :write-through
+                                          ::layered/miss
+                                          logger)
+            base-key (str "dcore.int.layered." (UUID/randomUUID))
+            key1 (str base-key ":chunked-bytes")
+            payload (byte-array 128)
+            _ (.nextBytes (java.util.Random. 42) payload)
+            compressed (compression/compress compressor payload)
+            expected-chunks (int (Math/ceil (/ (double (alength ^bytes compressed)) 10.0)))]
+        (try
+          (p/cache-put cache key1 payload nil)
+          (let [raw (p/cache-lookup redis key1 nil)
+                raw-bytes (payload->bytes raw)]
+            (is (bytes? raw-bytes))
+            (is (has-chunk-header? raw-bytes))
+            (let [manifest (parse-chunk-manifest raw-bytes)]
+              (is (= expected-chunks (:chunks manifest)))
+              (doseq [idx (range (:chunks manifest))]
+                (let [chunk (p/cache-lookup redis (str key1 "::chunk/" idx) nil)
+                      chunk-bytes (payload->bytes chunk)]
+                  (is (bytes? chunk-bytes))
+                  (is (<= (alength ^bytes chunk-bytes) 10))))))
+          (is (= (seq payload) (seq (p/cache-lookup cache key1 nil))))
+          (finally
+            (p/cache-delete cache key1 nil)
+            (ig/halt! system)))))))

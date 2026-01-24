@@ -96,6 +96,58 @@ Example (illustrative):
   }}
 ```
 
+### Cache
+
+All cache backends implement `CacheProtocol` and can be composed. For single-cache routing, use `:d-core.core.cache.common/common`.
+
+#### Layered cache (composite tiers)
+
+`d-core.core.cache.layered` provides a composite cache that reads/writes across multiple tiers and can optionally read-through a durable source.
+
+Key points:
+- **TTL is expressed in milliseconds** (`:ttl-ms`), with optional `:ttl` + `:ttl-unit` helpers.
+- **`nil` is treated as a miss** (cached `nil` values are not supported).
+- Per-tier TTL coercion can be customized via `:ttl-unit` or `:ttl-coerce`.
+- `:write-strategy` supports `:write-through` and `:write-around`.
+
+Example config:
+
+```edn
+{:system
+ {:d-core.core.cache.in-memory/in-memory {:logger #ig/ref :duct/logger}
+  :d-core.core.clients.redis/client {:uri "redis://localhost:6379"}
+  :d-core.core.cache.redis/redis {:redis-client #ig/ref :d-core.core.clients.redis/client}
+  :d-core.core.storage/minio {:endpoint "http://localhost:9000"
+                              :access-key "minio"
+                              :secret-key "minio123"
+                              :bucket "dcore-cache"
+                              :logger #ig/ref :duct/logger}
+
+  :d-core.core.cache.layered/layered
+  {:logger #ig/ref :duct/logger
+   :miss :cache/miss
+   :write-strategy :write-through
+   :tiers [{:id :mem
+            :cache #ig/ref :d-core.core.cache.in-memory/in-memory
+            :ttl-ms 500
+            :promote? true}
+           {:id :redis
+            :cache #ig/ref :d-core.core.cache.redis/redis
+            :ttl-ms 2000}]
+   :source {:read-fn  #ig/ref :my-app.storage/read
+            :write-fn #ig/ref :my-app.storage/write
+            :delete-fn #ig/ref :my-app.storage/delete}}}}
+```
+
+Example usage:
+
+```clj
+(require '[d-core.core.cache.protocol :as cache])
+
+(cache/cache-lookup layered-cache :user/123 nil)
+(cache/cache-put layered-cache :user/123 {:name "Ada"} {:ttl-ms 1000})
+```
+
 ### Cryptography
 
 d-core ships a small `CriptographyProtocol` abstraction with two implementations:

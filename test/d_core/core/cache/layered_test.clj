@@ -30,11 +30,11 @@
                                      {:id :b :cache cache-b}]
                                     nil
                                     :write-through
-                                    ::cache/miss
+                                    ::layered/miss
                                     logger)]
       (is (= :hit (p/cache-lookup c :k nil)))
-      (is (= [{:cache :a :op :lookup :key :k :opts nil}
-              {:cache :b :op :lookup :key :k :opts nil}
+      (is (= [{:cache :a :op :lookup :key :k :opts {}}
+              {:cache :b :op :lookup :key :k :opts {}}
               {:cache :a :op :put :key :k :value :hit :opts {:ttl 2}}]
              @calls)))))
 
@@ -50,14 +50,14 @@
                                      {:id :b :cache cache-b}]
                                     source
                                     :write-through
-                                    ::cache/miss
+                                    ::layered/miss
                                     nil)]
       (is (= :value (p/cache-lookup c :k nil)))
-      (is (= [{:cache :a :op :lookup :key :k :opts nil}
-              {:cache :b :op :lookup :key :k :opts nil}
-              {:op :source-read :key :k :opts nil}
-              {:cache :a :op :put :key :k :value :value :opts nil}
-              {:cache :b :op :put :key :k :value :value :opts nil}]
+      (is (= [{:cache :a :op :lookup :key :k :opts {}}
+              {:cache :b :op :lookup :key :k :opts {}}
+              {:op :source-read :key :k :opts {}}
+              {:cache :a :op :put :key :k :value :value :opts {}}
+              {:cache :b :op :put :key :k :value :value :opts {}}]
              @calls)))))
 
 (deftest layered-cache-put-write-through
@@ -70,9 +70,9 @@
           c (layered/->LayeredCache [{:id :a :cache cache-a :ttl-ms 2500}]
                                     source
                                     :write-through
-                                    ::cache/miss
+                                    ::layered/miss
                                     nil)]
       (is (= :value (p/cache-put c :k :value nil)))
-      (is (= [{:op :source-write :key :k :value :value :opts nil}
+      (is (= [{:op :source-write :key :k :value :value :opts {}}
               {:cache :a :op :put :key :k :value :value :opts {:ttl 3}}]
              @calls)))))

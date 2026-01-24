@@ -10,3 +10,4 @@ logs/
 .nrepl-port
 storage/
 target/
+.tests_run.txt

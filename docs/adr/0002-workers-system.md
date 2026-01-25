@@ -73,6 +73,14 @@ Add a small D-core workers system built on `core.async`. It provides:
   closes channels and stops loops.
 - Execution model per worker (`:dispatch`), so blocking handlers can run on a
   thread pool separate from go blocks.
+- Worker topology is app-owned: D-core defines entry points and workload
+  requirements, while fan-out/fan-in is composed by the developer.
+- Observability is provided via the existing Duct observability component,
+  available in the worker context.
+- Supervision/restarts are out of scope for v1; failures are app-defined and
+  may leverage async messaging + DLQ when needed.
+- The runtime should fail fast if a `:dispatch :go` worker performs blocking
+  calls, to prevent shipping unsafe code to production.
 
 The context map is the primary solution for component injection. The runtime
 builds it once per worker and passes it to every handler, so worker handlers can
@@ -103,6 +111,8 @@ go-loops.
 - Observability should be added consistently (logging/metrics/tracing in ctx).
 - Mis-declared handlers (blocking on `:go`) can still cause problems; guardrails
   and clear docs are required.
+- Since supervision is out of scope, failures require explicit app-level
+  handling or integration with messaging/DLQ.
 
 ## Config Sketch
 
@@ -172,8 +182,4 @@ Pipeline composition stays in app code. Example (sketch):
 
 ## Open Questions
 
-- Should we support fan-out (mult/pub) in v1 or defer it?
-- How do we surface health and backpressure metrics consistently?
-- How do we standardize blocking work (go vs thread) per worker?
-- Should the runtime support supervised restarts or just fail fast?
-- Should the runtime warn or fail fast if a `:go` handler blocks?
+- None (v1 scope defined).

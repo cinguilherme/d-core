@@ -79,8 +79,9 @@ Add a small D-core workers system built on `core.async`. It provides:
   available in the worker context.
 - Supervision/restarts are out of scope for v1; failures are app-defined and
   may leverage async messaging + DLQ when needed.
-- The runtime should fail fast if a `:dispatch :go` worker performs blocking
-  calls, to prevent shipping unsafe code to production.
+- The runtime should provide a dev-mode guard that detects blocking calls in
+  `:dispatch :go` workers and fails fast in development/testing, while avoiding
+  additional risk in production.
 
 The context map is the primary solution for component injection. The runtime
 builds it once per worker and passes it to every handler, so worker handlers can

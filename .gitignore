@@ -11,3 +11,4 @@ logs/
 storage/
 target/
 .tests_run.txt
+.lsp/

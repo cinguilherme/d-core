@@ -63,7 +63,7 @@
   [ctx msg ex]
   {:worker-id (get-in ctx [:worker :id])
    :worker-kind (get-in ctx [:worker :kind])
-   :message (.getMessage ex)
+   :message (or (.getMessage ex) "No message")
    :ex-data (ex-data ex)
    :error (Throwable->map ex)
    :msg msg})

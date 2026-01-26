@@ -100,8 +100,10 @@
   (let [guard-ms (or guard-ms 25)
         done (async/go (worker-fn ctx msg))
         timeout (async/timeout guard-ms)
-        result (async/alt! done ([v] [:done v])
-                           timeout ([_] [:timeout nil]))]
+        [result-val result-port] (async/alts!! [done timeout])
+        result (if (= result-port done)
+                 [:done result-val]
+                 [:timeout nil])]
     (when (= (first result) :timeout)
       (throw (ex-info "Blocking call detected in :dispatch :go worker"
                       {:worker-id (get-in ctx [:worker :id])

@@ -187,4 +187,3 @@
   (async/<!! (request! @example-system :image-download {:image-url image-url
                                                         :max-bytes 200000
                                                         :resize {:max-dim 1024}})))
-;(stop-example!)

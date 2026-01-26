@@ -95,12 +95,12 @@
 (defn guarded-go-call
   "Run a worker function inside a go block and fail if it exceeds guard-ms.
 
-  Returns the worker result when it completes within the guard window."
+  This must be invoked from within a go context."
   [worker-fn ctx msg {:keys [guard-ms]}]
   (let [guard-ms (or guard-ms 25)
         done (async/go (worker-fn ctx msg))
         timeout (async/timeout guard-ms)
-        [result-val result-port] (async/alts!! [done timeout])
+        [result-val result-port] (async/alts! [done timeout])
         result (if (= result-port done)
                  [:done result-val]
                  [:timeout nil])]
@@ -140,10 +140,12 @@
   full, ticks may be dropped and a drop event recorded (if stats/emit are
   provided)."
   [worker ctx stop-chan]
-  (let [{:keys [out interval-ms worker-id output-chan-id stats emit]} worker
+  (let [{:keys [out interval-ms]} worker
+        {:keys [stats emit]} ctx
         out-chan (get (:channels ctx) out)
         interval-ms (or interval-ms 1000)
-        output-chan-id (or output-chan-id out)]
+        worker-id (get-in ctx [:worker :id])
+        output-chan-id out]
     (async/go-loop [tick 0]
       (let [timeout (async/timeout interval-ms)
             [_ ch] (async/alts! [stop-chan timeout])]

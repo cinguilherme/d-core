@@ -26,3 +26,10 @@ Cron Tasks provides a Quartz-backed scheduler component for config-defined
 cron jobs that dispatch into handler functions with injected components.
 
 See `docs/cron_task.md` for usage and configuration.
+
+### Workers (experimental)
+
+Workers provides a small core.async-based runtime for ticker/command workers,
+explicit buffering, output channels, and failure routing.
+
+See `docs/workers.md` for usage and configuration.

@@ -39,22 +39,22 @@ The workers runtime is intentionally small:
             :workers/errors {:buffer 8}}
  :workers {:commands {:kind :command
                       :in :commands/in
-                      :worker-fn :my-app.workers/commands
+                      :worker-fn my-app.workers/commands
                       :dispatch :thread
                       :expose? true
                       :fail-chan :workers/errors}
            :image-download {:kind :command
                             :in :images/in
-                            :worker-fn :my-app.workers/image-download
+                            :worker-fn my-app.workers/image-download
                             :dispatch :thread
                             :expose? true}
            :image-resize {:kind :command
                           :in :images/resize
-                          :worker-fn :my-app.workers/image-resize
+                          :worker-fn my-app.workers/image-resize
                           :dispatch :thread}
            :image-store {:kind :command
                          :in :images/store
-                         :worker-fn :my-app.workers/image-store
+                         :worker-fn my-app.workers/image-store
                          :output-chan :images/out
                          :dispatch :thread}}}
 ```

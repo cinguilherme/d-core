@@ -175,14 +175,16 @@
 
 (def image-url "https://images.unsplash.com/photo-1761839256547-0a1cd11b6dfb?q=80&w=2338&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDF8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D")
 
-(command! @example-system :commands {:cmd :ping-3})
-
-(command! @example-system :image-download {:image-url image-url
-                                            :max-bytes 200000
-                                            :resize {:max-dim 1024}})
-
-(async/<!! (request! @example-system :image-download {:image-url image-url
-                                                      :max-bytes 200000
-                                                      :resize {:max-dim 1024}}))
-
+(defn run-image-examples!
+  "Run example image-related worker commands against `@example-system`.
+  Intended for interactive use from the REPL, after the example system
+  has been started."
+  []
+  (command! @example-system :commands {:cmd :ping-3})
+  (command! @example-system :image-download {:image-url image-url
+                                             :max-bytes 200000
+                                             :resize {:max-dim 1024}})
+  (async/<!! (request! @example-system :image-download {:image-url image-url
+                                                        :max-bytes 200000
+                                                        :resize {:max-dim 1024}})))
 ;(stop-example!)

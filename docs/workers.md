@@ -95,7 +95,7 @@ Common keys:
 (async/<!! (workers/request! system :image-download {:image-url "..."}))
 (workers/stats-snapshot system)
 
-  ((:stop! system))
+((:stop! system))
 ```
 
 ## Quickstart

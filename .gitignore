@@ -12,3 +12,4 @@ storage/
 target/
 .tests_run.txt
 .lsp/
+resized_images/

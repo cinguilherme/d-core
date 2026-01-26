@@ -132,16 +132,25 @@
                                   :reason :fail-chan-full})))))
 
 (defn start-ticker-worker
-  "Start a ticker worker that emits ticks to :out at :interval-ms until stop."
+  "Start a ticker worker that emits ticks to :out at :interval-ms until stop.
+
+  Tick delivery is best-effort and non-blocking; when the output channel is
+  full, ticks may be dropped and a drop event recorded (if stats/emit are
+  provided)."
   [worker ctx stop-chan]
-  (let [{:keys [out interval-ms]} worker
+  (let [{:keys [out interval-ms worker-id output-chan-id stats emit]} worker
         out-chan (get (:channels ctx) out)
-        interval-ms (or interval-ms 1000)]
+        interval-ms (or interval-ms 1000)
+        output-chan-id (or output-chan-id out)]
     (async/go-loop [tick 0]
       (let [timeout (async/timeout interval-ms)
             [_ ch] (async/alts! [stop-chan timeout])]
         (when-not (= ch stop-chan)
-          (async/>! out-chan tick)
+          (when out-chan
+            (when-not (async/offer! out-chan tick)
+              (record-drop! stats emit {:worker-id worker-id
+                                        :channel-id output-chan-id
+                                        :reason :ticker-output-drop})))
           (recur (inc tick)))))))
 
 (defn start-command-worker

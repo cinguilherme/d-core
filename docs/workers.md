@@ -95,7 +95,25 @@ Common keys:
 (async/<!! (workers/request! system :image-download {:image-url "..."}))
 (workers/stats-snapshot system)
 
-((:stop! system))
+  ((:stop! system))
+```
+
+## Integrant Component
+
+```edn
+{:my-app.config.workers/definition
+ {:channels {:commands/in {:buffer 8}}
+  :workers {:commands {:kind :command
+                       :in :commands/in
+                       :worker-fn :my-app.workers/commands
+                       :dispatch :thread
+                       :expose? true}}}
+
+ :d-core.core.workers/system
+ {:definition #ig/ref :my-app.config.workers/definition
+  :components {:obs #ig/ref :my-app.observability/component}
+  :dev-guard? true
+  :guard-ms 50}}
 ```
 
 ## Quickstart

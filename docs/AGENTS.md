@@ -39,3 +39,6 @@ It is intentionally **coupled to Integrant and Duct**. The “API surface” is 
 - **Configuration-first**: apps wire behavior via `duct.edn` and Integrant refs.
 - **Replaceable backends**: choose infra via config, not code changes.
 - **Incremental adoption**: you can migrate a service piece-by-piece (queue/tracing → messaging → clients → producers/consumers → cache/storage/etc).
+
+### Extra Code Rules
+- Modularization is paramount, keep functions clean and avoid too much nesting expecially let bindings.

@@ -39,3 +39,10 @@ It is intentionally **coupled to Integrant and Duct**. The “API surface” is 
 - **Configuration-first**: apps wire behavior via `duct.edn` and Integrant refs.
 - **Replaceable backends**: choose infra via config, not code changes.
 - **Incremental adoption**: you can migrate a service piece-by-piece (queue/tracing → messaging → clients → producers/consumers → cache/storage/etc).
+
+### General Coding Rules
+
+- Modularization is extremely important.
+- Avoid too much nesting, extract functions to avoid too much nesting. If more than just one let binding is needed, extract to a function.
+- Use pure functions whenever possible. They should be easy to unit test. 
+- Always test in between changes to avoid regressions. "make tests" or clojure -M:test -n "target test name" to run a specific test.

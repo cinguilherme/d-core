@@ -9,9 +9,15 @@
 (defn- in-memory-storage
   [data]
   (reify storage/StorageProtocol
-    (storage-get [_ key _opts] (get data key))
+    (storage-get [_ key _opts]
+      (if-let [v (get data key)]
+        {:ok true :value v}
+        {:ok false :error-type :not-found}))
     (storage-put [_ _ _ _] (throw (ex-info "storage-put not supported in test" {})))
-    (storage-delete [_ _ _] (throw (ex-info "storage-delete not supported in test" {})))))
+    (storage-delete [_ _ _] (throw (ex-info "storage-delete not supported in test" {})))
+    (storage-get-bytes [_ _ _] (throw (ex-info "storage-get-bytes not supported in test" {})))
+    (storage-put-bytes [_ _ _ _] (throw (ex-info "storage-put-bytes not supported in test" {})))
+    (storage-list [_ _] (throw (ex-info "storage-list not supported in test" {})))))
 
 (deftest storage-cryptography-roundtrip
   (testing "encrypt/decrypt roundtrip from storage key material"

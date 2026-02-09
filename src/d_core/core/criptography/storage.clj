@@ -57,11 +57,15 @@
 
 (defn- load-key
   [storage key-path encoding algorithm opts]
-  (let [key-material (storage/storage-get storage key-path opts)]
-    (when-not key-material
-      (throw (ex-info "Key material not found in storage"
-                      {:key-path key-path})))
-    (SecretKeySpec. (decode-key-material key-material encoding) algorithm)))
+  (let [result (storage/storage-get storage key-path opts)]
+    (when-not (:ok result)
+      (throw (ex-info
+               (if (= :not-found (:error-type result))
+                 "Key material not found in storage"
+                 (str "Failed to load key material from storage: "
+                      (:error result)))
+               (merge {:key-path key-path} (dissoc result :ok)))))
+    (SecretKeySpec. (decode-key-material (:value result) encoding) algorithm)))
 
 (defn encrypt-value
   [key value]

@@ -26,4 +26,4 @@
          (try
            (sqs/delete-queue! client queue-url)
            (catch Exception _e
-             nil))))))
+             nil)))))))

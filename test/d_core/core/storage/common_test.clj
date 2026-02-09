@@ -100,7 +100,7 @@
                     :delete    {:ok true}
                     :get-bytes {:ok true :bytes (byte-array [1 2 3])}
                     :put-bytes {:ok true}
-                    :list      {:ok true :keys ["a" "b"]}})
+                    :list      {:ok true :items [{:key "a"} {:key "b"}]}})
         sut (build-common-storage {:delegate delegate :logger logger})]
 
     (testing "storage-get delegates and returns result"
@@ -125,7 +125,7 @@
              (storage/storage-put-bytes sut "k" (byte-array [4 5]) {}))))
 
     (testing "storage-list delegates and returns result"
-      (is (= {:ok true :keys ["a" "b"]}
+      (is (= {:ok true :items [{:key "a"} {:key "b"}]}
              (storage/storage-list sut {}))))))
 
 ;; ---------------------------------------------------------------------------
@@ -177,7 +177,7 @@
                     :delete    {:ok true}
                     :get-bytes {:ok true :bytes (byte-array [1 2 3])}
                     :put-bytes {:ok true}
-                    :list      {:ok true :keys ["a" "b"]}})
+                    :list      {:ok true :items [{:key "a"} {:key "b"}]}})
         sut (build-common-storage {:delegate delegate
                                    :mock-metrics metrics
                                    :logger logger})]
@@ -223,7 +223,7 @@
 
     (testing "storage-list returns result and records :ok metrics"
       (reset! calls [])
-      (is (= {:ok true :keys ["a" "b"]}
+      (is (= {:ok true :items [{:key "a"} {:key "b"}]}
              (storage/storage-list sut {})))
       (let [incs (find-calls calls :inc! :storage_requests_total)]
         (is (= 1 (count incs)))

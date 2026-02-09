@@ -25,7 +25,7 @@
         (do
           (io/delete-file file)
           {:ok true :key key :path (.getPath file)})
-        {:ok false :key key :path (.getPath file) :error :not-found})))
+        {:ok false :key key :path (.getPath file) :error :not-found :error-type :not-found})))
   (storage-get-bytes [_ key _opts]
     (let [file (io/file root-path key)]
       (if (.exists file)

@@ -70,7 +70,7 @@
       {:ok true :key key :bucket bucket}
       (catch Exception e
         (logger/log logger :error ::storage-delete-failed {:key key :error (.getMessage e)})
-        {:ok false :key key :bucket bucket :error (.getMessage e)})))
+        {:ok false :key key :bucket bucket :error (.getMessage e) :error-type :error})))
   (storage-get-bytes [_ key _opts]
     (try
       (with-open [obj (.getObject client bucket key)

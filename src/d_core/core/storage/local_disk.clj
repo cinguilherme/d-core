@@ -3,7 +3,7 @@
             [clojure.java.io :as io]
             [duct.logger :as logger]
             [d-core.core.storage.protocol :as p])
-  (:import [java.nio.file Files OpenOption]))
+  (:import [java.nio.file Files FileVisitOption LinkOption OpenOption]))
 
 (defrecord LocalDiskStorage [root-path logger]
   p/StorageProtocol
@@ -47,33 +47,39 @@
       {:ok true :key key :path (.getPath file)}))
   (storage-list [_ {:keys [prefix limit token]}]
     (let [prefix (or prefix "")
-          limit (long (or limit 50))
-          offset (or (some-> token str parse-long) 0)
-          root (io/file root-path)
-          files (if (.exists root)
-                  (let [root-path-obj (.toPath (.getCanonicalFile root))]
-                    (->> (file-seq root)
-                         (filter #(.isFile ^java.io.File %))
-                         (map (fn [^java.io.File f]
-                                (let [f-path-obj (.toPath (.getCanonicalFile f))
-                                      rel (.relativize root-path-obj f-path-obj)]
-                                  {:key (.toString rel)
-                                   :size (.length f)
-                                   :last-modified (java.util.Date. (.lastModified f))})))
-                         (filter (fn [{:keys [key]}]
-                                   (or (empty? prefix)
-                                       (.startsWith ^String key prefix))))
-                         (sort-by :key)
-                         vec))
-                  [])
-          selected (->> files (drop offset) (take limit) vec)
-          next-offset (+ offset (count selected))
-          truncated? (< next-offset (count files))]
-      {:ok true
-       :items selected
-       :prefix prefix
-       :truncated? truncated?
-       :next-token (when truncated? (str next-offset))})))
+          limit  (long (or limit 50))
+          root   (io/file root-path)
+          root-p (.toPath root)]
+      (if-not (.exists root)
+        {:ok true :items [] :prefix prefix :truncated? false}
+        (with-open [stream (Files/walk root-p (into-array FileVisitOption []))]
+          (let [no-follow (into-array LinkOption [])
+                rel-keys (->> (.iterator stream)
+                              iterator-seq
+                              (filter #(Files/isRegularFile % no-follow))
+                              (map #(str (.relativize root-p %)))
+                              (filter #(or (empty? prefix)
+                                           (.startsWith ^String % prefix)))
+                              (filter #(or (nil? token)
+                                           (pos? (compare % token))))
+                              sort
+                              (take (inc limit))
+                              vec)
+                truncated? (> (count rel-keys) limit)
+                selected   (if truncated? (pop rel-keys) rel-keys)
+                items      (mapv (fn [rel-key]
+                                   (let [p (.resolve root-p rel-key)
+                                         f (.toFile p)]
+                                     {:key           rel-key
+                                      :size          (.length f)
+                                      :last-modified (java.util.Date.
+                                                       (.lastModified f))}))
+                                 selected)]
+            {:ok true
+             :items items
+             :prefix prefix
+             :truncated? truncated?
+             :next-token (when truncated? (:key (last items)))}))))))
 
 (defmethod ig/init-key :d-core.core.storage/local-disk
   [_ {:keys [root-path logger] :or {root-path "storage"}}]

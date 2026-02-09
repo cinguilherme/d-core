@@ -5,6 +5,29 @@
             [d-core.core.storage.protocol :as p])
   (:import [java.nio.file Files FileVisitOption LinkOption OpenOption]))
 
+(defn- rel-keys-from-stream [stream root-p prefix token limit]
+  (->> (.iterator stream)
+       iterator-seq
+       (filter #(Files/isRegularFile % (into-array LinkOption [])))
+       (map #(str (.relativize root-p %)))
+       (filter #(or (empty? prefix)
+                    (.startsWith ^String % prefix)))
+       (filter #(or (nil? token)
+                    (pos? (compare % token))))
+       sort
+       (take (inc limit))
+       vec))
+
+(defn- selected->items [selected root-p]
+  (mapv (fn [rel-key]
+          (let [p (.resolve root-p rel-key)
+                f (.toFile p)]
+            {:key           rel-key
+             :size          (.length f)
+             :last-modified (java.util.Date.
+                              (.lastModified f))}))
+        selected))
+
 (defrecord LocalDiskStorage [root-path logger]
   p/StorageProtocol
   (storage-get [_ key _opts]
@@ -53,28 +76,10 @@
       (if-not (.exists root)
         {:ok true :items [] :prefix prefix :truncated? false}
         (with-open [stream (Files/walk root-p (into-array FileVisitOption []))]
-          (let [no-follow (into-array LinkOption [])
-                rel-keys (->> (.iterator stream)
-                              iterator-seq
-                              (filter #(Files/isRegularFile % no-follow))
-                              (map #(str (.relativize root-p %)))
-                              (filter #(or (empty? prefix)
-                                           (.startsWith ^String % prefix)))
-                              (filter #(or (nil? token)
-                                           (pos? (compare % token))))
-                              sort
-                              (take (inc limit))
-                              vec)
+          (let [rel-keys (rel-keys-from-stream stream root-p prefix token limit)
                 truncated? (> (count rel-keys) limit)
                 selected   (if truncated? (pop rel-keys) rel-keys)
-                items      (mapv (fn [rel-key]
-                                   (let [p (.resolve root-p rel-key)
-                                         f (.toFile p)]
-                                     {:key           rel-key
-                                      :size          (.length f)
-                                      :last-modified (java.util.Date.
-                                                       (.lastModified f))}))
-                                 selected)]
+                items      (selected->items selected root-p)]
             {:ok true
              :items items
              :prefix prefix

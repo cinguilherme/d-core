@@ -101,7 +101,7 @@
 
 (defn- minio-source
   [minio]
-  {:read-fn (fn [key opts] (storage/storage-get minio key opts))
+  {:read-fn (fn [key opts] (:value (storage/storage-get minio key opts)))
    :write-fn (fn [key value opts] (storage/storage-put minio key value opts))
    :delete-fn (fn [key opts] (storage/storage-delete minio key opts))})
 
@@ -132,7 +132,7 @@
           (p/cache-put cache key1 "v1" nil)
           (is (= "v1" (p/cache-lookup cache key1 nil)))
           (is (= "v1" (p/cache-lookup redis key1 nil)))
-          (is (= "v1" (storage/storage-get minio key1 nil)))
+          (is (= "v1" (:value (storage/storage-get minio key1 nil))))
 
           (Thread/sleep 1200)
           (p/cache-delete mem key1 nil) ;; simulate in-memory TTL
@@ -167,7 +167,7 @@
           (p/cache-put cache key1 "v1" nil)
           (is (nil? (p/cache-lookup mem key1 nil)))
           (is (nil? (p/cache-lookup redis key1 nil)))
-          (is (= "v1" (storage/storage-get minio key1 nil)))
+          (is (= "v1" (:value (storage/storage-get minio key1 nil))))
           (is (= "v1" (p/cache-lookup cache key1 nil)))
           (is (= "v1" (p/cache-lookup redis key1 nil)))
           (finally
@@ -234,13 +234,13 @@
           (is (= "v-through" (p/cache-lookup redis key-through nil)))
           (Thread/sleep 600)
           (is (wait-for #(nil? (p/cache-lookup redis key-through nil)) 2000))
-          (is (= "v-through" (storage/storage-get minio key-through nil)))
+          (is (= "v-through" (:value (storage/storage-get minio key-through nil))))
 
           ;; write-around: no cache write; redis remains empty until read-through
           (p/cache-put cache-write-around key-around "v-around" nil)
           (Thread/sleep 600)
           (is (nil? (p/cache-lookup redis key-around nil)))
-          (is (= "v-around" (storage/storage-get minio key-around nil)))
+          (is (= "v-around" (:value (storage/storage-get minio key-around nil))))
           (is (= "v-around" (p/cache-lookup cache-write-around key-around nil)))
           (is (= "v-around" (p/cache-lookup redis key-around nil)))
           (Thread/sleep 600)

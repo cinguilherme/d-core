@@ -10,10 +10,10 @@
   (storage-get [_ key _opts]
     (let [file (io/file root-path key)]
       (if (.exists file)
-        (slurp file)
+        {:ok true :key key :value (slurp file)}
         (do
           (logger/log logger :warn ::file-not-found {:path (.getPath file)})
-          nil))))
+          {:ok false :key key :error-type :not-found}))))
   (storage-put [_ key value _opts]
     (let [file (io/file root-path key)]
       (io/make-parents file)

@@ -51,8 +51,9 @@
   p/StorageProtocol
   (storage-get [this key opts]
     (let [result (p/storage-get-bytes this key opts)]
-      (when (:ok result)
-        (String. ^bytes (:bytes result) "UTF-8"))))
+      (if (:ok result)
+        {:ok true :key key :value (String. ^bytes (:bytes result) "UTF-8")}
+        (dissoc result :bytes))))
   (storage-put [this key value opts]
     (let [bytes-value? (bytes? value)
           content-type (or (:content-type opts)

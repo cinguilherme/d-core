@@ -32,7 +32,7 @@
   admin/DeadLetterAdminProtocol
   (get-deadletter [_ dlq-id opts]
     (try
-      (let [s (storage/storage-get storage (by-id-key dlq-id) opts)
+      (let [s (:value (storage/storage-get storage (by-id-key dlq-id) opts))
             v (parse-json s)]
         (if v
           {:ok true :item v}
@@ -45,7 +45,7 @@
     (try
       (when-not topic
         (throw (ex-info "list-deadletters requires :topic (storage index is topic-scoped)" {})))
-      (let [idx (storage/storage-get storage (index-key-for-topic topic) opts)
+      (let [idx (:value (storage/storage-get storage (index-key-for-topic topic) opts))
             entries (parse-jsonl idx)
             ids (->> entries
                      (filter (fn [e] (or (nil? status) (= status (:status e)))))

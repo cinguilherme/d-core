@@ -48,7 +48,7 @@
                                               :written-at (System/currentTimeMillis)})
               max-lines (long (or (:dlq/index-max-lines opts) 5000))
               append! (fn [k]
-                        (let [existing (or (storage/storage-get storage k opts) "")
+                        (let [existing (or (:value (storage/storage-get storage k opts)) "")
                               combined (str existing (when-not (empty? existing) "\n") idx-line)
                               ;; naive truncation: keep last N lines
                               lines (str/split-lines combined)

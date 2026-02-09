@@ -42,14 +42,17 @@
       (if-not metrics
         (p/storage-get delegate key opts)
         (let [start  (System/nanoTime)
-              result (try
-                       (p/storage-get delegate key opts)
-                       (catch Exception e
-                         {:ok false :key key :error (.getMessage e)}))
-              status (result-status result)
-              dur    (elapsed-seconds start)]
-          (record-metrics! metrics instruments :get dur status nil)
-          result))))
+              status (volatile! :ok)]
+          (try
+            (let [result (p/storage-get delegate key opts)]
+              (vreset! status (result-status result))
+              result)
+            (catch Exception e
+              (vreset! status :error)
+              (throw e))
+            (finally
+              (record-metrics! metrics instruments :get
+                               (elapsed-seconds start) @status nil)))))))
   (storage-put [_ key value opts]
     (let [storage-key (or (:storage opts) default-storage-key)
           delegate (get backends storage-key)]
@@ -57,14 +60,17 @@
       (if-not metrics
         (p/storage-put delegate key value opts)
         (let [start  (System/nanoTime)
-              result (try
-                       (p/storage-put delegate key value opts)
-                       (catch Exception e
-                         {:ok false :key key :error (.getMessage e)}))
-              status (result-status result)
-              dur    (elapsed-seconds start)]
-          (record-metrics! metrics instruments :put dur status nil)
-          result))))
+              status (volatile! :ok)]
+          (try
+            (let [result (p/storage-put delegate key value opts)]
+              (vreset! status (result-status result))
+              result)
+            (catch Exception e
+              (vreset! status :error)
+              (throw e))
+            (finally
+              (record-metrics! metrics instruments :put
+                               (elapsed-seconds start) @status nil)))))))
   (storage-delete [_ key opts]
     (let [storage-key (or (:storage opts) default-storage-key)
           delegate (get backends storage-key)]
@@ -72,14 +78,17 @@
       (if-not metrics
         (p/storage-delete delegate key opts)
         (let [start  (System/nanoTime)
-              result (try
-                       (p/storage-delete delegate key opts)
-                       (catch Exception e
-                         {:ok false :key key :error (.getMessage e)}))
-              status (result-status result)
-              dur    (elapsed-seconds start)]
-          (record-metrics! metrics instruments :delete dur status nil)
-          result))))
+              status (volatile! :ok)]
+          (try
+            (let [result (p/storage-delete delegate key opts)]
+              (vreset! status (result-status result))
+              result)
+            (catch Exception e
+              (vreset! status :error)
+              (throw e))
+            (finally
+              (record-metrics! metrics instruments :delete
+                               (elapsed-seconds start) @status nil)))))))
   (storage-get-bytes [_ key opts]
     (let [storage-key (or (:storage opts) default-storage-key)
           delegate (get backends storage-key)]
@@ -87,15 +96,20 @@
       (if-not metrics
         (p/storage-get-bytes delegate key opts)
         (let [start  (System/nanoTime)
-              result (try
-                       (p/storage-get-bytes delegate key opts)
-                       (catch Exception e
-                         {:ok false :key key :error (.getMessage e)}))
-              status (result-status result)
-              dur    (elapsed-seconds start)]
-          (record-metrics! metrics instruments :get dur status
-                           (when (:ok result) (byte-count (:bytes result))))
-          result))))
+              status (volatile! :ok)
+              bc     (volatile! nil)]
+          (try
+            (let [result (p/storage-get-bytes delegate key opts)]
+              (vreset! status (result-status result))
+              (when (:ok result)
+                (vreset! bc (byte-count (:bytes result))))
+              result)
+            (catch Exception e
+              (vreset! status :error)
+              (throw e))
+            (finally
+              (record-metrics! metrics instruments :get
+                               (elapsed-seconds start) @status @bc)))))))
   (storage-put-bytes [_ key bytes opts]
     (let [storage-key (or (:storage opts) default-storage-key)
           delegate (get backends storage-key)]
@@ -103,14 +117,18 @@
       (if-not metrics
         (p/storage-put-bytes delegate key bytes opts)
         (let [start  (System/nanoTime)
-              result (try
-                       (p/storage-put-bytes delegate key bytes opts)
-                       (catch Exception e
-                         {:ok false :key key :error (.getMessage e)}))
-              status (result-status result)
-              dur    (elapsed-seconds start)]
-          (record-metrics! metrics instruments :put dur status (byte-count bytes))
-          result))))
+              status (volatile! :ok)]
+          (try
+            (let [result (p/storage-put-bytes delegate key bytes opts)]
+              (vreset! status (result-status result))
+              result)
+            (catch Exception e
+              (vreset! status :error)
+              (throw e))
+            (finally
+              (record-metrics! metrics instruments :put
+                               (elapsed-seconds start) @status
+                               (byte-count bytes))))))))
   (storage-list [_ opts]
     (let [storage-key (or (:storage opts) default-storage-key)
           delegate (get backends storage-key)]
@@ -118,14 +136,17 @@
       (if-not metrics
         (p/storage-list delegate opts)
         (let [start  (System/nanoTime)
-              result (try
-                       (p/storage-list delegate opts)
-                       (catch Exception e
-                         {:ok false :error (.getMessage e)}))
-              status (result-status result)
-              dur    (elapsed-seconds start)]
-          (record-metrics! metrics instruments :list dur status nil)
-          result)))))
+              status (volatile! :ok)]
+          (try
+            (let [result (p/storage-list delegate opts)]
+              (vreset! status (result-status result))
+              result)
+            (catch Exception e
+              (vreset! status :error)
+              (throw e))
+            (finally
+              (record-metrics! metrics instruments :list
+                               (elapsed-seconds start) @status nil))))))))
 
 (defn- build-instruments
   [metrics]

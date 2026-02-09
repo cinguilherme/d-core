@@ -42,11 +42,12 @@
     routes))
 
 (defmethod ig/expand-key :d-core.module/ws
-  [_ {:keys [routes port logger]
+  [_ {:keys [routes port middleware logger]
       :or {routes []}}]
   (let [routes (add-refs-to-routes routes)]
     `{:d-core.ws/handler
       {:routes ~routes
+       :middleware ~middleware
        :logger ~logger}
 
       :d-core.ws/server

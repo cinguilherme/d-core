@@ -6,12 +6,14 @@
    [reitit.ring :as ring]))
 
 (defmethod ig/init-key :d-core.ws/handler
-  [_ {:keys [routes logger]}]
-  ;; Placeholder for future middleware support (logging, tracing, auth, etc).
+  [_ {:keys [routes middleware logger]}]
   (when logger
     (logger/log logger :info ::ws-handler-initialized
-                {:routes (count routes)}))
-  (let [router (ring/router routes)
+                {:routes (count routes)
+                 :middleware (count (or middleware []))}))
+  (let [opts (cond-> {}
+               (seq middleware) (assoc :data {:middleware middleware}))
+        router (ring/router routes opts)
         not-found (fn [_] {:status 404 :body "Not Found"})]
     (ring/ring-handler router not-found)))
 

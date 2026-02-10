@@ -2,6 +2,7 @@
   (:require [d-core.core.stream.protocol :as p-streams]
             [clojure.string :as str]
             [integrant.core :as ig]
+            [d-core.core.stream.common :as common]
             [d-core.core.stream.in-mem.logic :as logic]))
 
 (defrecord InMemoryStreamBackend [state]
@@ -47,5 +48,6 @@
             [:sequences key])))
 
 (defmethod ig/init-key :core-service.app.streams.in-memory/backend
-  [_ _]
-  (->InMemoryStreamBackend (atom {:streams {} :cursors {} :sequences {} :last-ids {} :waiters {}})))
+  [_ {:keys [logger metrics]}]
+  (let [backend (->InMemoryStreamBackend (atom {:streams {} :cursors {} :sequences {} :last-ids {} :waiters {}}))]
+    (common/wrap-backend backend logger metrics)))

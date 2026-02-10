@@ -23,13 +23,34 @@
               {:id "1000-2" :payload "c"}]
              entries))))
 
+  (testing "range response supports list-shaped field pairs"
+    (let [response [["1000-0" '("payload" "a")]
+                    ["1000-1" '("payload" "b")]]
+          entries (logic/range-response->entries response)]
+      (is (= [{:id "1000-0" :payload "a"}
+              {:id "1000-1" :payload "b"}]
+             entries))))
+
   (testing "xread response flattens per stream"
     (let [response [["stream-1" [["1000-0" ["payload" "a"]]
                                  ["1000-1" ["payload" "b"]]]]]
           entries (logic/xread-response->entries response)]
       (is (= [{:id "1000-0" :payload "a"}
               {:id "1000-1" :payload "b"}]
-             entries)))))
+             entries))))
+
+  (testing "xread response supports list-shaped field pairs"
+    (let [response [["stream-1" [["1000-0" '("payload" "a")]
+                                 ["1000-1" '("payload" "b")]]]]
+          entries (logic/xread-response->entries response)]
+      (is (= [{:id "1000-0" :payload "a"}
+              {:id "1000-1" :payload "b"}]
+             entries))))
+
+  (testing "odd field collections are ignored safely"
+    (let [response [["1000-0" '("payload")]]
+          entries (logic/range-response->entries response)]
+      (is (= [{:id "1000-0" :payload nil}] entries)))))
 
 (deftest cursor-and-limit-test
   (testing "next cursor only exists on full page"
@@ -58,9 +79,10 @@
   (testing "trim uses next redis id to preserve strict > semantics"
     (is (= [1000 0] (logic/parse-id "1000-0")))
     (is (nil? (logic/parse-id "bad-id")))
+    (is (nil? (logic/parse-id "1000-0-1")))
     (is (= "1000-1" (logic/next-stream-id "1000-0")))
     (is (= "1000-1" (logic/trim-min-id "1000-0")))
-    (is (= "bad-id" (logic/trim-min-id "bad-id")))))
+    (is (nil? (logic/trim-min-id "bad-id")))))
 
 (deftest metadata-and-scan-test
   (testing "metadata keys are derived from a configurable prefix"

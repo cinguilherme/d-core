@@ -97,6 +97,16 @@
         (is (= 1 (p/trim-stream! backend "s1" "1000-0")))
         (is (= [{:stream "s1" :min-id "1000-1"}] @calls)))))
 
+  (testing "trim is a no-op for invalid stream ids"
+    (let [calls (atom [])
+          backend (make-backend)]
+      (with-redefs [d-core.core.stream.redis.redis/redis-xtrim-minid
+                    (fn [_client _stream _min-id]
+                      (swap! calls conj :called)
+                      1)]
+        (is (nil? (p/trim-stream! backend "s1" "invalid-id")))
+        (is (empty? @calls)))))
+
   (testing "cursor and sequence utility operations use redis hashes"
     (let [backend (make-backend)
           hget-calls (atom [])

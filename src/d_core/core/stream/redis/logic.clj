@@ -25,7 +25,9 @@
   [fields]
   (cond
     (map? fields) fields
-    (vector? fields) (apply hash-map fields)
+    (sequential? fields) (if (even? (count fields))
+                           (apply hash-map fields)
+                           {})
     :else {}))
 
 (defn entry->payload
@@ -76,13 +78,14 @@
 (defn parse-id
   [id]
   (when (and id (str/includes? id "-"))
-    (let [[ts-str seq-str] (str/split id #"-")]
-      (when (and ts-str seq-str)
+    (let [parts (str/split id #"-")]
+      (when (= 2 (count parts))
+        (let [[ts-str seq-str] parts]
         (try
           [(Long/parseLong ts-str)
            (Long/parseLong seq-str)]
           (catch NumberFormatException _
-            nil))))))
+              nil)))))))
 
 (defn next-stream-id
   [id]
@@ -91,7 +94,7 @@
 
 (defn trim-min-id
   [id]
-  (or (next-stream-id id) id))
+  (next-stream-id id))
 
 (defn normalize-meta-prefix
   [meta-prefix]

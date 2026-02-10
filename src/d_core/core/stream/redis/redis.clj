@@ -3,6 +3,7 @@
             [d-core.core.stream.redis.logic :as logic]
             [integrant.core :as ig]
             [taoensso.carmine :as car]
+            [d-core.core.stream.common :as common]
             [d-core.core.clients.redis.client]))
 
 (defn redis-xadd
@@ -123,8 +124,9 @@
     (redis-hincrby redis-client (logic/sequence-hash-key meta-prefix) key 1)))
 
 (defmethod ig/init-key :core-service.app.streams.redis/backend
-  [_ {:keys [redis-client meta-key-prefix scan-count]
+  [_ {:keys [redis-client meta-key-prefix scan-count logger metrics]
       :or {scan-count logic/default-scan-count}}]
-  (->RedisStreamBackend redis-client
-                        (logic/normalize-meta-prefix meta-key-prefix)
-                        scan-count))
+  (let [backend (->RedisStreamBackend redis-client
+                                      (logic/normalize-meta-prefix meta-key-prefix)
+                                      scan-count)]
+    (common/wrap-backend backend logger metrics)))

@@ -1,0 +1,17 @@
+
+Running tests in #{"test"}
+
+Testing d-core.core.stream.in-mem-test
+
+FAIL in (utilities-test) (in_mem_test.clj:76)
+next-sequence
+expected: (= 1 (p/next-sequence! backend "s1"))
+  actual: (not (= 1 nil))
+
+FAIL in (utilities-test) (in_mem_test.clj:77)
+next-sequence
+expected: (= 2 (p/next-sequence! backend "s1"))
+  actual: (not (= 2 nil))
+
+Ran 4 tests containing 21 assertions.
+2 failures, 0 errors.

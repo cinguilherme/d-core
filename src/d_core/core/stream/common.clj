@@ -164,5 +164,6 @@
 
 (defmethod ig/init-key :d-core.core.stream/common
   [_ {:keys [backend logger metrics]}]
-  (logger/log logger :info ::initializing-common-stream {:metrics? (some? metrics)})
+  (when logger
+    (logger/log logger :info ::initializing-common-stream {:metrics? (some? metrics)}))
   (wrap-backend backend logger metrics))

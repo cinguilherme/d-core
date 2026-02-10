@@ -74,6 +74,21 @@
                 :next-cursor "1000-0"}
                (p/read-payloads backend "s1" {:timeout 150 :limit 1}))))))
 
+  (testing "blocking read treats timeout 0 as infinite block"
+    (let [backend (make-backend)]
+      (with-redefs [d-core.core.stream.redis.redis/redis-xrange
+                    (fn [_client _stream _start _end _limit]
+                      [])
+                    d-core.core.stream.redis.redis/redis-xread-block
+                    (fn [_client _stream start-id timeout-ms limit]
+                      (is (= "0-0" start-id))
+                      (is (= 0 timeout-ms))
+                      (is (= 1 limit))
+                      [["s1" [["1000-0" ["payload" "late-zero"]]]]])]
+        (is (= {:entries [{:id "1000-0" :payload "late-zero"}]
+                :next-cursor "1000-0"}
+               (p/read-payloads backend "s1" {:timeout 0 :limit 1}))))))
+
   (testing "blocking timeout returns empty result"
     (let [backend (make-backend)]
       (with-redefs [d-core.core.stream.redis.redis/redis-xrange

@@ -66,6 +66,9 @@
     (is (true? (logic/blocking-request?
                 {:direction :forward :timeout 100}
                 {:entries []})))
+    (is (true? (logic/blocking-request?
+                {:direction :forward :timeout 0}
+                {:entries []})))
     (is (false? (logic/blocking-request?
                  {:direction :backward :timeout 100}
                  {:entries []})))

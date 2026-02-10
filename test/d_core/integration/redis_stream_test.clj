@@ -84,6 +84,7 @@
       (is true "Skipping Redis stream integration test; set INTEGRATION=1")
       (let [client (redis-client/make-client {:uri (redis-uri)})
             stream (str "dcore:int:stream:async:" (UUID/randomUUID))
+            stream-zero (str "dcore:int:stream:async-zero:" (UUID/randomUUID))
             meta-prefix (str "__dcore:int:meta:" (UUID/randomUUID))
             backend (redis-stream/->RedisStreamBackend client meta-prefix 100)]
         (try
@@ -101,8 +102,18 @@
             (let [res @result]
               (is (= 1 (count (:entries res))))
               (is (= "late-arrival" (:payload (first (:entries res)))))))
+
+          (let [result-zero (promise)]
+            (future
+              (deliver result-zero (p/read-payloads backend stream-zero {:timeout 0})))
+            (Thread/sleep 50)
+            (p/append-payload! backend stream-zero "late-arrival-zero")
+            (is (wait-for #(realized? result-zero) 1000))
+            (let [res @result-zero]
+              (is (= 1 (count (:entries res))))
+              (is (= "late-arrival-zero" (:payload (first (:entries res)))))))
           (finally
-            (cleanup! client [stream] meta-prefix)))))))
+            (cleanup! client [stream stream-zero] meta-prefix)))))))
 
 (deftest redis-stream-backend-utilities-and-trim
   (testing "trim, cursors, sequence, and stream listing"

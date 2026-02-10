@@ -68,7 +68,7 @@
   [{:keys [direction timeout]} read-once-result]
   (and (= :forward (normalize-direction direction))
        (number? timeout)
-       (pos? timeout)
+       (>= timeout 0)
        (empty? (:entries read-once-result))))
 
 (defn block-start-id

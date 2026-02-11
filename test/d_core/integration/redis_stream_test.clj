@@ -89,13 +89,13 @@
             backend (redis-stream/->RedisStreamBackend client meta-prefix 100)]
         (try
           (let [start (System/currentTimeMillis)
-                res (p/read-payloads backend stream {:timeout 100})]
+                res (p/read-payloads backend stream {:direction :forward :timeout 100})]
             (is (empty? (:entries res)))
             (is (>= (- (System/currentTimeMillis) start) 100)))
 
           (let [result (promise)]
             (future
-              (deliver result (p/read-payloads backend stream {:timeout 2000})))
+              (deliver result (p/read-payloads backend stream {:direction :forward :timeout 2000})))
             (Thread/sleep 50)
             (p/append-payload! backend stream "late-arrival")
             (is (wait-for #(realized? result) 1000))
@@ -105,7 +105,7 @@
 
           (let [result-zero (promise)]
             (future
-              (deliver result-zero (p/read-payloads backend stream-zero {:timeout 0})))
+              (deliver result-zero (p/read-payloads backend stream-zero {:direction :forward :timeout 0})))
             (Thread/sleep 50)
             (p/append-payload! backend stream-zero "late-arrival-zero")
             (is (wait-for #(realized? result-zero) 1000))

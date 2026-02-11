@@ -81,7 +81,8 @@
       (is (= "id-1" (protocol/append-payload! stream "s1" (.getBytes "data")))))
     
     (testing "read-payloads returns result from delegate"
-      (is (= {:entries [] :next-cursor nil} (protocol/read-payloads stream "s1" {}))))))
+      (is (= {:entries [] :next-cursor nil}
+             (protocol/read-payloads stream "s1" {:direction :forward}))))))
 
 (deftest instrumentation-success
   (let [{:keys [logger]} (h-logger/make-test-logger)
@@ -111,7 +112,7 @@
     (testing "read-payloads records metrics with byte count"
       (reset! calls [])
       (is (= {:entries [{:id "1" :payload payload}] :next-cursor "2"} 
-             (protocol/read-payloads stream "s1" {})))
+             (protocol/read-payloads stream "s1" {:direction :forward})))
       
       (let [incs (find-calls calls :inc! :stream_requests_total)
             bytes (find-calls calls :observe! :stream_bytes)]

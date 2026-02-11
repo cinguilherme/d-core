@@ -72,7 +72,7 @@
                       [["s1" [["1000-0" ["payload" "late"]]]]])]
         (is (= {:entries [{:id "1000-0" :payload "late"}]
                 :next-cursor "1000-0"}
-               (p/read-payloads backend "s1" {:timeout 150 :limit 1}))))))
+               (p/read-payloads backend "s1" {:direction :forward :timeout 150 :limit 1}))))))
 
   (testing "blocking read treats timeout 0 as infinite block"
     (let [backend (make-backend)]
@@ -87,7 +87,7 @@
                       [["s1" [["1000-0" ["payload" "late-zero"]]]]])]
         (is (= {:entries [{:id "1000-0" :payload "late-zero"}]
                 :next-cursor "1000-0"}
-               (p/read-payloads backend "s1" {:timeout 0 :limit 1}))))))
+               (p/read-payloads backend "s1" {:direction :forward :timeout 0 :limit 1}))))))
 
   (testing "blocking timeout returns empty result"
     (let [backend (make-backend)]
@@ -98,7 +98,13 @@
                     (fn [_client _stream _start-id _timeout-ms _limit]
                       nil)]
         (is (= {:entries [] :next-cursor nil}
-               (p/read-payloads backend "s1" {:timeout 50 :limit 1}))))))
+               (p/read-payloads backend "s1" {:direction :forward :timeout 50 :limit 1}))))))
+
+  (testing "read rejects missing direction"
+    (let [backend (make-backend)]
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                            #"requires :direction"
+                            (p/read-payloads backend "s1" {:limit 1})))))
   )
 
 (deftest utility-operations-test

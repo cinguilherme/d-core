@@ -43,17 +43,22 @@
         stream "async-stream"]
     (testing "blocking read times out"
       (let [start (System/currentTimeMillis)
-            res (p/read-payloads backend stream {:timeout 100})]
+            res (p/read-payloads backend stream {:direction :forward :timeout 100})]
         (is (empty? (:entries res)))
         (is (>= (- (System/currentTimeMillis) start) 100))))
 
     (testing "blocking read succeeds when data arrives"
-      (let [fut (future (p/read-payloads backend stream {:timeout 2000}))]
+      (let [fut (future (p/read-payloads backend stream {:direction :forward :timeout 2000}))]
         (Thread/sleep 50)
         (p/append-payload! backend stream "late-arrival")
         (let [res @fut]
           (is (= 1 (count (:entries res))))
-          (is (= "late-arrival" (:payload (first (:entries res))))))))))
+          (is (= "late-arrival" (:payload (first (:entries res))))))))
+
+    (testing "read rejects missing direction"
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                            #"requires :direction"
+                            (p/read-payloads backend stream {:timeout 100}))))))
 
 (deftest trim-test
   (let [backend (create-backend)

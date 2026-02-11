@@ -137,3 +137,20 @@
       (let [incs (find-calls calls :inc! :stream_requests_total)]
         (is (= 1 (count incs)))
         (is (= ["append" "error"] (get-in (first incs) [:metric :labels])))))))
+
+(deftest invalid-metrics-dependency-fails-fast
+  (let [{:keys [logger]} (h-logger/make-test-logger)
+        {:keys [metrics]} (make-mock-metrics)
+        delegate          (make-mock-delegate {})]
+    (testing "wrap-backend rejects wrapper maps that do not implement MetricsProtocol"
+      (let [ex (try
+                 (common/wrap-backend delegate logger {:metrics metrics})
+                 nil
+                 (catch clojure.lang.ExceptionInfo e
+                   e))]
+        (is (some? ex))
+        (is (re-find #"Invalid :metrics dependency" (ex-message ex)))
+        (is (= :d-core.core.stream/common (:component (ex-data ex))))
+        (is (= :metrics (:dependency (ex-data ex))))
+        (is (= "d-core.core.metrics.protocol/MetricsProtocol" (:expected (ex-data ex))))
+        (is (= "clojure.lang.PersistentArrayMap" (:actual-type (ex-data ex))))))))

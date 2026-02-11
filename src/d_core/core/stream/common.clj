@@ -157,10 +157,22 @@
                                            :buckets [1024 4096 16383 65535 262143
                                                      1048575 5242879 10485759]})})
 
+(defn- validate-metrics!
+  [metrics]
+  (when (and metrics (not (satisfies? m/MetricsProtocol metrics)))
+    (throw (ex-info "Invalid :metrics dependency for CommonStream. Expected a MetricsProtocol implementation."
+                    {:component   :d-core.core.stream/common
+                     :dependency  :metrics
+                     :expected    "d-core.core.metrics.protocol/MetricsProtocol"
+                     :actual-type (.getName (class metrics))
+                     :hint        "Wire :metrics directly to a MetricsProtocol implementation, e.g. :d-core.core.metrics.prometheus/metrics."})))
+  metrics)
+
 (defn wrap-backend
   [backend logger metrics]
-  (let [instruments (when metrics (build-instruments metrics))]
-    (->CommonStream backend logger metrics instruments)))
+  (let [validated-metrics (validate-metrics! metrics)
+        instruments       (when validated-metrics (build-instruments validated-metrics))]
+    (->CommonStream backend logger validated-metrics instruments)))
 
 (defmethod ig/init-key :d-core.core.stream/common
   [_ {:keys [backend logger metrics]}]

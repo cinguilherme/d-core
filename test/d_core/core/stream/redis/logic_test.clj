@@ -1,12 +1,20 @@
 (ns d-core.core.stream.redis.logic-test
   (:require [clojure.test :refer [deftest is testing]]
-            [d-core.core.stream.redis.logic :as logic]))
+            [d-core.core.stream.redis.logic :as logic]
+            [d-core.core.stream.validation :as validation]))
 
 (deftest directions-and-ranges-test
-  (testing "direction and cursor normalization"
-    (is (= :forward (logic/normalize-direction nil)))
-    (is (= :forward (logic/normalize-direction :forward)))
-    (is (= :backward (logic/normalize-direction :backward)))
+  (testing "direction validation and cursor boundaries"
+    (is (= {:direction :forward}
+           (validation/ensure-direction! {:direction :forward})))
+    (is (= {:direction :backward}
+           (validation/ensure-direction! {:direction :backward})))
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                          #"requires :direction"
+                          (validation/ensure-direction! {})))
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                          #"requires :direction"
+                          (validation/ensure-direction! {:direction :sideways})))
     (is (= "-" (logic/range-start nil)))
     (is (= "(10-0" (logic/range-start "10-0")))
     (is (= "+" (logic/revrange-end nil)))

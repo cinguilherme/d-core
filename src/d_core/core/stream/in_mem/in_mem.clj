@@ -3,7 +3,8 @@
             [clojure.string :as str]
             [integrant.core :as ig]
             [d-core.core.stream.common :as common]
-            [d-core.core.stream.in-mem.logic :as logic]))
+            [d-core.core.stream.in-mem.logic :as logic]
+            [d-core.core.stream.validation :as validation]))
 
 (defrecord InMemoryStreamBackend [state]
   p-streams/StreamBackend
@@ -24,7 +25,7 @@
         (map :id (:entries res)))))
 
   (read-payloads [_ stream opts]
-    (logic/read-payloads-with-blocking state stream opts))
+    (logic/read-payloads-with-blocking state stream (validation/ensure-direction! opts)))
 
   (trim-stream! [_ stream id]
     (swap! state update-in [:streams stream]

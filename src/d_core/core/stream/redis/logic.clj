@@ -5,10 +5,6 @@
 (def default-scan-count 100)
 (def default-meta-prefix "__dcore:stream")
 
-(defn normalize-direction
-  [direction]
-  (if (= direction :backward) :backward :forward))
-
 (defn normalize-limit
   [limit]
   (long (or limit default-limit)))
@@ -66,7 +62,7 @@
 
 (defn blocking-request?
   [{:keys [direction timeout]} read-once-result]
-  (and (= :forward (normalize-direction direction))
+  (and (= :forward direction)
        (number? timeout)
        (>= timeout 0)
        (empty? (:entries read-once-result))))

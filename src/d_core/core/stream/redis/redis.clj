@@ -1,6 +1,7 @@
 (ns d-core.core.stream.redis.redis
   (:require [d-core.core.stream.protocol :as p-streams]
             [d-core.core.stream.redis.logic :as logic]
+            [d-core.core.stream.validation :as validation]
             [integrant.core :as ig]
             [taoensso.carmine :as car]
             [d-core.core.stream.common :as common]
@@ -58,8 +59,7 @@
 
 (defn- read-once
   [redis-client stream {:keys [direction cursor limit]}]
-  (let [direction (logic/normalize-direction direction)
-        limit-val (logic/normalize-limit limit)
+  (let [limit-val (logic/normalize-limit limit)
         response (if (= direction :forward)
                    (redis-xrange redis-client
                                  stream
@@ -83,7 +83,7 @@
     (mapv #(redis-xadd redis-client stream %) payloads-bytes))
 
   (read-payloads [_ stream opts]
-    (let [opts (update opts :direction logic/normalize-direction)
+    (let [opts (validation/ensure-direction! opts)
           first-read (read-once redis-client stream opts)]
       (if (logic/blocking-request? opts first-read)
         (let [timeout-ms (:timeout opts)

@@ -117,6 +117,7 @@ protocols:
 
 - Cache: `d-core.core.cache.protocol/CacheProtocol`
 - Storage: `d-core.core.storage.protocol/StorageProtocol`
+  - Storage operations: `storage-get`, `storage-put`, `storage-delete`, `storage-get-bytes`, `storage-put-bytes`, `storage-head`, `storage-list`
 - Rate limit: `d-core.core.rate-limit.protocol/RateLimitProtocol`
 - Metrics: `d-core.core.metrics.protocol/MetricsProtocol`
 - Text search: `d-core.core.text-search.protocol/*`

@@ -17,6 +17,7 @@
     (storage-delete [_ _ _] (throw (ex-info "storage-delete not supported in test" {})))
     (storage-get-bytes [_ _ _] (throw (ex-info "storage-get-bytes not supported in test" {})))
     (storage-put-bytes [_ _ _ _] (throw (ex-info "storage-put-bytes not supported in test" {})))
+    (storage-head [_ _ _] (throw (ex-info "storage-head not supported in test" {})))
     (storage-list [_ _] (throw (ex-info "storage-list not supported in test" {})))))
 
 (deftest storage-cryptography-roundtrip

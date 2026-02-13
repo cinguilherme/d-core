@@ -12,6 +12,10 @@ It is intentionally **coupled to Integrant and Duct**. The “API surface” is 
  -- They are generic in the sense that they don't recieve even specific objects, always a clojure primitive, or a map of primitives, or a list of primitives, etc.
  -- They take a opts last arument to allow for speficic that are specific to a particular implementation, such as in MessagingProtocol, the last argument is where you can find a Kafka specificitites, or a Redis specificities, etc.
 
+For `StorageProtocol`, the core operations are:
+`storage-get`, `storage-put`, `storage-delete`, `storage-get-bytes`,
+`storage-put-bytes`, `storage-head`, and `storage-list`.
+
 ### What it provides
 
 - **Integrant components** for common app infrastructure:

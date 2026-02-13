@@ -58,6 +58,7 @@
       (storage-delete    [_ _key _opts]         (resolve-behavior :delete))
       (storage-get-bytes [_ _key _opts]         (resolve-behavior :get-bytes))
       (storage-put-bytes [_ _key _bytes _opts]  (resolve-behavior :put-bytes))
+      (storage-head      [_ _key _opts]         (resolve-behavior :head))
       (storage-list      [_ _opts]              (resolve-behavior :list)))))
 
 (defn- build-common-storage
@@ -100,6 +101,7 @@
                     :delete    {:ok true}
                     :get-bytes {:ok true :bytes (byte-array [1 2 3])}
                     :put-bytes {:ok true}
+                    :head      {:ok true :key "k" :size 3 :content-type "text/plain" :etag nil :last-modified nil}
                     :list      {:ok true :items [{:key "a"} {:key "b"}]}})
         sut (build-common-storage {:delegate delegate :logger logger})]
 
@@ -124,6 +126,10 @@
       (is (= {:ok true}
              (storage/storage-put-bytes sut "k" (byte-array [4 5]) {}))))
 
+    (testing "storage-head delegates and returns result"
+      (is (= {:ok true :key "k" :size 3 :content-type "text/plain" :etag nil :last-modified nil}
+             (storage/storage-head sut "k" {}))))
+
     (testing "storage-list delegates and returns result"
       (is (= {:ok true :items [{:key "a"} {:key "b"}]}
              (storage/storage-list sut {}))))))
@@ -137,7 +143,7 @@
         ex (RuntimeException. "boom")
         delegate (make-mock-delegate
                    {:get ex :put ex :delete ex
-                    :get-bytes ex :put-bytes ex :list ex})
+                    :get-bytes ex :put-bytes ex :head ex :list ex})
         sut (build-common-storage {:delegate delegate :logger logger})]
 
     (testing "storage-get propagates exception"
@@ -160,6 +166,10 @@
       (is (thrown-with-msg? RuntimeException #"boom"
             (storage/storage-put-bytes sut "k" (byte-array [1]) {}))))
 
+    (testing "storage-head propagates exception"
+      (is (thrown-with-msg? RuntimeException #"boom"
+            (storage/storage-head sut "k" {}))))
+
     (testing "storage-list propagates exception"
       (is (thrown-with-msg? RuntimeException #"boom"
             (storage/storage-list sut {}))))))
@@ -177,6 +187,7 @@
                     :delete    {:ok true}
                     :get-bytes {:ok true :bytes (byte-array [1 2 3])}
                     :put-bytes {:ok true}
+                    :head      {:ok true :key "k" :size 3 :content-type "text/plain" :etag nil :last-modified nil}
                     :list      {:ok true :items [{:key "a"} {:key "b"}]}})
         sut (build-common-storage {:delegate delegate
                                    :mock-metrics metrics
@@ -221,6 +232,14 @@
         (is (= 1 (count incs)))
         (is (= ["put" "ok"] (get-in (first incs) [:metric :labels])))))
 
+    (testing "storage-head returns result and records :ok metrics"
+      (reset! calls [])
+      (is (= {:ok true :key "k" :size 3 :content-type "text/plain" :etag nil :last-modified nil}
+             (storage/storage-head sut "k" {})))
+      (let [incs (find-calls calls :inc! :storage_requests_total)]
+        (is (= 1 (count incs)))
+        (is (= ["head" "ok"] (get-in (first incs) [:metric :labels])))))
+
     (testing "storage-list returns result and records :ok metrics"
       (reset! calls [])
       (is (= {:ok true :items [{:key "a"} {:key "b"}]}
@@ -239,7 +258,7 @@
         ex (RuntimeException. "boom")
         delegate (make-mock-delegate
                    {:get ex :put ex :delete ex
-                    :get-bytes ex :put-bytes ex :list ex})
+                    :get-bytes ex :put-bytes ex :head ex :list ex})
         sut (build-common-storage {:delegate delegate
                                    :mock-metrics metrics
                                    :logger logger})]
@@ -283,6 +302,14 @@
         (is (= 1 (count incs)))
         (is (= ["put" "error"] (get-in (first incs) [:metric :labels])))))
 
+    (testing "storage-head: exception propagates AND error metrics recorded"
+      (reset! calls [])
+      (is (thrown-with-msg? RuntimeException #"boom"
+            (storage/storage-head sut "k" {})))
+      (let [incs (find-calls calls :inc! :storage_requests_total)]
+        (is (= 1 (count incs)))
+        (is (= ["head" "error"] (get-in (first incs) [:metric :labels])))))
+
     (testing "storage-list: exception propagates AND error metrics recorded"
       (reset! calls [])
       (is (thrown-with-msg? RuntimeException #"boom"
@@ -317,7 +344,13 @@
       (storage/storage-put-bytes sut "k" payload {})
       (let [obs (find-calls calls :observe! :storage_bytes)]
         (is (= 1 (count obs)))
-        (is (= 5 (int (:value (first obs)))))))))
+        (is (= 5 (int (:value (first obs)))))))
+
+    (testing "storage-head does not record byte-count histogram"
+      (reset! calls [])
+      (storage/storage-head sut "k" {})
+      (let [obs (find-calls calls :observe! :storage_bytes)]
+        (is (empty? obs))))))
 
 (deftest byte-count-not-recorded-on-exception
   (let [{:keys [logger]} (h-logger/make-test-logger)
@@ -342,7 +375,8 @@
   (let [{:keys [logger]} (h-logger/make-test-logger)
         {:keys [metrics calls]} (make-mock-metrics)
         delegate (make-mock-delegate
-                   {:get {:ok false :error-type :not-found}})
+                   {:get {:ok false :error-type :not-found}
+                    :head {:ok false :error-type :not-found}})
         sut (build-common-storage {:delegate delegate
                                    :mock-metrics metrics
                                    :logger logger})]
@@ -353,4 +387,13 @@
         (let [incs (find-calls calls :inc! :storage_requests_total)]
           (is (= 1 (count incs)))
           (is (= ["get" "not-found"]
+                 (get-in (first incs) [:metric :labels]))))))
+
+    (testing "storage-head not-found result records :not-found status"
+      (reset! calls [])
+      (let [result (storage/storage-head sut "k" {})]
+        (is (not (:ok result)))
+        (let [incs (find-calls calls :inc! :storage_requests_total)]
+          (is (= 1 (count incs)))
+          (is (= ["head" "not-found"]
                  (get-in (first incs) [:metric :labels]))))))))

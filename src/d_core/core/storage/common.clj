@@ -129,6 +129,24 @@
               (record-metrics! metrics instruments :put
                                (elapsed-seconds start) @status
                                (byte-count bytes))))))))
+  (storage-head [_ key opts]
+    (let [storage-key (or (:storage opts) default-storage-key)
+          delegate (get backends storage-key)]
+      (logger/log logger :debug ::storage-head {:key key :storage storage-key})
+      (if-not metrics
+        (p/storage-head delegate key opts)
+        (let [start  (System/nanoTime)
+              status (volatile! :ok)]
+          (try
+            (let [result (p/storage-head delegate key opts)]
+              (vreset! status (result-status result))
+              result)
+            (catch Exception e
+              (vreset! status :error)
+              (throw e))
+            (finally
+              (record-metrics! metrics instruments :head
+                               (elapsed-seconds start) @status nil)))))))
   (storage-list [_ opts]
     (let [storage-key (or (:storage opts) default-storage-key)
           delegate (get backends storage-key)]

@@ -6,4 +6,5 @@
   (storage-delete [this key opts] "Delete a value from the storage")
   (storage-get-bytes [this key opts] "Get raw bytes from storage")
   (storage-put-bytes [this key bytes opts] "Set raw bytes in storage")
+  (storage-head [this key opts] "Fetch object metadata/existence without body")
   (storage-list [this opts] "List stored objects"))

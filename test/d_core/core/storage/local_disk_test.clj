@@ -133,3 +133,22 @@
       (is (:ok result))
       (is (empty? (:items result)))
       (is (not (:truncated? result))))))
+
+(deftest storage-head-existing-file-returns-metadata
+  (testing "storage-head returns object metadata without reading body"
+    (put! "images/cat.txt" "hello")
+    (let [result (storage/storage-head *sut* "images/cat.txt" {})]
+      (is (:ok result))
+      (is (= "images/cat.txt" (:key result)))
+      (is (= 5 (:size result)))
+      ;; platform dependent; some systems may return nil
+      (is (or (nil? (:content-type result))
+              (string? (:content-type result))))
+      (is (nil? (:etag result)))
+      (is (instance? java.util.Date (:last-modified result))))))
+
+(deftest storage-head-missing-file-returns-not-found
+  (testing "storage-head returns :not-found for unknown keys"
+    (let [result (storage/storage-head *sut* "missing/nope.jpg" {})]
+      (is (not (:ok result)))
+      (is (= :not-found (:error-type result))))))

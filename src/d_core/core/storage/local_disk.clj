@@ -28,6 +28,13 @@
                               (.lastModified f))}))
         selected))
 
+(defn- probe-content-type
+  [path]
+  (try
+    (Files/probeContentType path)
+    (catch Exception _
+      nil)))
+
 (defrecord LocalDiskStorage [root-path logger]
   p/StorageProtocol
   (storage-get [_ key _opts]
@@ -68,6 +75,24 @@
       (io/make-parents file)
       (Files/write (.toPath file) ^bytes bytes (into-array OpenOption []))
       {:ok true :key key :path (.getPath file)}))
+  (storage-head [_ key _opts]
+    (let [file (io/file root-path key)]
+      (if (.exists file)
+        (let [path (.toPath file)]
+          {:ok true
+           :key key
+           :path (.getPath file)
+           :size (.length file)
+           :content-type (probe-content-type path)
+           :etag nil
+           :last-modified (java.util.Date. (.lastModified file))})
+        (do
+          (logger/log logger :warn ::file-not-found {:path (.getPath file)})
+          {:ok false
+           :key key
+           :path (.getPath file)
+           :error :not-found
+           :error-type :not-found}))))
   (storage-list [_ {:keys [prefix limit token]}]
     (let [prefix (or prefix "")
           limit  (long (or limit 50))

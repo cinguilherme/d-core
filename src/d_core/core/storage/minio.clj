@@ -122,6 +122,37 @@
       (catch Exception e
         (logger/log logger :error ::storage-put-failed {:key key :error (.getMessage e)})
         {:ok false :key key :bucket bucket :error (.getMessage e)})))
+  (storage-head [_ key _opts]
+    (try
+      (let [meta (.getObjectMetadata client bucket key)]
+        {:ok true
+         :key key
+         :bucket bucket
+         :size (.getContentLength meta)
+         :content-type (.getContentType meta)
+         :etag (.getETag meta)
+         :last-modified (.getLastModified meta)})
+      (catch AmazonS3Exception e
+        (let [error-code (.getErrorCode e)
+              status (.getStatusCode e)
+              not-found? (or (= "NoSuchKey" error-code)
+                             (= "NotFound" error-code)
+                             (= 404 status))
+              log-level (if not-found? :info :error)]
+          (logger/log logger log-level ::storage-head-failed {:key key
+                                                              :error (.getMessage e)
+                                                              :error-code error-code
+                                                              :status status})
+          {:ok false
+           :key key
+           :bucket bucket
+           :error (.getMessage e)
+           :error-code error-code
+           :status status
+           :error-type (if not-found? :not-found :s3-error)}))
+      (catch Exception e
+        (logger/log logger :error ::storage-head-failed {:key key :error (.getMessage e)})
+        {:ok false :key key :bucket bucket :error (.getMessage e) :error-type :error})))
   (storage-list [_ {:keys [prefix limit token]}]
     (try
       (let [req (doto (ListObjectsV2Request.)

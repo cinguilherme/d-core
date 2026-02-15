@@ -10,52 +10,52 @@
 (defn redis-xadd
   [redis-client stream payload]
   (car/wcar (:conn redis-client)
-    (car/xadd stream "*" "payload" payload)))
+            (car/xadd stream "*" "payload" payload)))
 
 (defn redis-xrange
   [redis-client stream start end limit]
   (car/wcar (:conn redis-client)
-    (car/xrange stream start end "COUNT" (str limit))))
+            (car/xrange stream start end "COUNT" (str limit))))
 
 (defn redis-xrevrange
   [redis-client stream end start limit]
   (car/wcar (:conn redis-client)
-    (car/xrevrange stream end start "COUNT" (str limit))))
+            (car/xrevrange stream end start "COUNT" (str limit))))
 
 (defn redis-xread-block
   [redis-client stream start-id timeout-ms limit]
   (car/wcar (:conn redis-client)
-    (car/xread "BLOCK" (str timeout-ms)
-               "COUNT" (str limit)
-               "STREAMS" stream start-id)))
+            (car/xread "BLOCK" (str timeout-ms)
+                       "COUNT" (str limit)
+                       "STREAMS" stream start-id)))
 
 (defn redis-xtrim-minid
   [redis-client stream min-id]
   (car/wcar (:conn redis-client)
-    (car/xtrim stream "MINID" min-id)))
+            (car/xtrim stream "MINID" min-id)))
 
 (defn redis-scan-streams
   [redis-client cursor pattern scan-count]
   (car/wcar (:conn redis-client)
-    (car/scan cursor
-              "MATCH" pattern
-              "TYPE" "stream"
-              "COUNT" (str scan-count))))
+            (car/scan cursor
+                      "MATCH" pattern
+                      "TYPE" "stream"
+                      "COUNT" (str scan-count))))
 
 (defn redis-hget
   [redis-client hash-key field]
   (car/wcar (:conn redis-client)
-    (car/hget hash-key field)))
+            (car/hget hash-key field)))
 
 (defn redis-hset
   [redis-client hash-key field value]
   (car/wcar (:conn redis-client)
-    (car/hset hash-key field value)))
+            (car/hset hash-key field value)))
 
 (defn redis-hincrby
   [redis-client hash-key field amount]
   (car/wcar (:conn redis-client)
-    (car/hincrby hash-key field amount)))
+            (car/hincrby hash-key field amount)))
 
 (defn- read-once
   [redis-client stream {:keys [direction cursor limit]}]

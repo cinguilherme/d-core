@@ -264,6 +264,6 @@
 
   (let [tap-x (fn [v] (dtap {:label "x"} v))]
     (-> {:a 1 :b [2 3]}
-         tap-x
-         (assoc :c :d)
-         tap-x)))
+        tap-x
+        (assoc :c :d)
+        tap-x)))

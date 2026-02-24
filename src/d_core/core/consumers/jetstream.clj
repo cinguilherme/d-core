@@ -69,27 +69,27 @@
         strictness (:strictness scfg)]
     (when view
       (schema/validate! view
-                       (or (:msg envelope) envelope)
-                       {:schema-id subscription-id
-                        :strictness strictness})))
+                        (or (:msg envelope) envelope)
+                        {:schema-id subscription-id
+                         :strictness strictness})))
   envelope)
 
 (defn- enrich-jetstream-envelope
   [{:keys [routing topic subscription-id subject stream durable client-key]} envelope payload status]
   (let [dl-cfg (routing/deadletter-config routing topic subscription-id)]
     (dlmeta/enrich-for-deadletter
-      (or envelope {:msg nil})
-      {:topic topic
-       :subscription-id subscription-id
-       :runtime :jetstream
-       :source {:subject subject
-                :stream stream
-                :durable durable
-                :client client-key}
-       :producer client-key
-       :deadletter dl-cfg
-       :raw-payload payload
-       :status status})))
+     (or envelope {:msg nil})
+     {:topic topic
+      :subscription-id subscription-id
+      :runtime :jetstream
+      :source {:subject subject
+               :stream stream
+               :durable durable
+               :client client-key}
+      :producer client-key
+      :deadletter dl-cfg
+      :raw-payload payload
+      :status status})))
 
 (defn- poison!
   [{:keys [dead-letter logger] :as ctx} ^Message msg failure-type envelope-or-nil ^Exception e payload]
@@ -206,7 +206,7 @@
         threads
         (into {}
               (map (fn [[subscription-id {:keys [topic handler options schema client producer]
-                                         :or {options {}}}]]
+                                          :or {options {}}}]]
                      (let [topic (or topic :default)
                            client-key (or client
                                           producer
@@ -219,19 +219,19 @@
                                           :known (when (map? jetstream) (keys jetstream))})))
                        [subscription-id
                         (start-jetstream-subscription!
-                          {:subscription-id subscription-id
-                           :js (:js js-client)
-                           :jsm (:jsm js-client)
-                           :routing routing
-                           :codec codec
-                           :handler handler
-                           :dead-letter dead-letter
-                           :stop? stop?
-                           :logger logger
-                           :topic topic
-                           :options options
-                           :client-key client-key
-                           :subscription-schema schema})])))
+                         {:subscription-id subscription-id
+                          :js (:js js-client)
+                          :jsm (:jsm js-client)
+                          :routing routing
+                          :codec codec
+                          :handler handler
+                          :dead-letter dead-letter
+                          :stop? stop?
+                          :logger logger
+                          :topic topic
+                          :options options
+                          :client-key client-key
+                          :subscription-schema schema})])))
               js-subs)]
     {:stop? stop?
      :threads threads

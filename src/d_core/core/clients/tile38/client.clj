@@ -51,10 +51,10 @@
 (defn- command-token
   [command]
   (str/upper-case
-    (cond
-      (keyword? command) (name command)
-      (symbol? command) (name command)
-      :else (str command))))
+   (cond
+     (keyword? command) (name command)
+     (symbol? command) (name command)
+     :else (str command))))
 
 ;; Tile38 speaks Redis protocol, so we enqueue raw commands via Carmine.
 (defn- output-command
@@ -71,9 +71,9 @@
         {:keys [parse-json? output]} (request-opts client opts)
         output-req (output-command output)
         resp (car/wcar (:conn client)
-               (when output-req
-                 (car-commands/enqueue-request 0 output-req))
-               (car-commands/enqueue-request 0 req))
+                       (when output-req
+                         (car-commands/enqueue-request 0 output-req))
+                       (car-commands/enqueue-request 0 req))
         reply (if (vector? resp) (last resp) resp)]
     (if parse-json?
       (maybe-parse-json reply)
@@ -83,10 +83,10 @@
   [fields]
   (when (seq fields)
     (reduce
-      (fn [acc [k v]]
-        (conj acc "FIELD" (if (keyword? k) (name k) (str k)) v))
-      []
-      (sort-by (comp str key) fields))))
+     (fn [acc [k v]]
+       (conj acc "FIELD" (if (keyword? k) (name k) (str k)) v))
+     []
+     (sort-by (comp str key) fields))))
 
 (defn- point->latlon
   [point]
@@ -142,39 +142,39 @@
   (when (and nx? xx?)
     (throw (ex-info "Tile38 SET cannot use NX and XX together" {:nx? nx? :xx? xx?})))
   (concat
-    (or (fields->args fields) [])
-    (when (some? ex) ["EX" ex])
-    (when nx? ["NX"])
-    (when xx? ["XX"])))
+   (or (fields->args fields) [])
+   (when (some? ex) ["EX" ex])
+   (when nx? ["NX"])
+   (when xx? ["XX"])))
 
 (defn set-point!
   [client key id point opts]
   (let [[lat lon] (ensure-point point)
         args (vec
-               (concat
-                 [key id]
-                 (set-options opts)
-                 ["POINT" lat lon]))]
+              (concat
+               [key id]
+               (set-options opts)
+               ["POINT" lat lon]))]
     (request! client "SET" args opts)))
 
 (defn set-object!
   [client key id object opts]
   (let [obj (object->json object)
         args (vec
-               (concat
-                 [key id]
-                 (set-options opts)
-                 ["OBJECT" obj]))]
+              (concat
+               [key id]
+               (set-options opts)
+               ["OBJECT" obj]))]
     (request! client "SET" args opts)))
 
 (defn set-bounds!
   [client key id bounds opts]
   (let [[minlat minlon maxlat maxlon] (ensure-bounds bounds)
         args (vec
-               (concat
-                 [key id]
-                 (set-options opts)
-                 ["BOUNDS" minlat minlon maxlat maxlon]))]
+              (concat
+               [key id]
+               (set-options opts)
+               ["BOUNDS" minlat minlon maxlat maxlon]))]
     (request! client "SET" args opts)))
 
 (defn get!
@@ -233,21 +233,21 @@
 (defn within!
   [client key shape {:keys [cursor match limit] :as opts}]
   (let [args (vec
-               (concat
-                 (cond-> [key]
-                   (some? cursor) (conj "CURSOR" cursor)
-                   match (conj "MATCH" match)
-                   limit (conj "LIMIT" limit))
-                 (shape-args shape)))]
+              (concat
+               (cond-> [key]
+                 (some? cursor) (conj "CURSOR" cursor)
+                 match (conj "MATCH" match)
+                 limit (conj "LIMIT" limit))
+               (shape-args shape)))]
     (request! client "WITHIN" args opts)))
 
 (defn intersects!
   [client key shape {:keys [cursor match limit] :as opts}]
   (let [args (vec
-               (concat
-                 (cond-> [key]
-                   (some? cursor) (conj "CURSOR" cursor)
-                   match (conj "MATCH" match)
-                   limit (conj "LIMIT" limit))
-                 (shape-args shape)))]
+              (concat
+               (cond-> [key]
+                 (some? cursor) (conj "CURSOR" cursor)
+                 match (conj "MATCH" match)
+                 limit (conj "LIMIT" limit))
+               (shape-args shape)))]
     (request! client "INTERSECTS" args opts)))

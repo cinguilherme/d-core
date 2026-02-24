@@ -137,6 +137,6 @@
           producer (common-producer/->CommonProducer :in-memory producers routing nil nil)]
       (is (thrown? clojure.lang.ExceptionInfo
                    (p/produce! producer {:id 1}
-                              {:topic :orders
-                               :delay-ms 1000})))
+                               {:topic :orders
+                                :delay-ms 1000})))
       (is (= [] @produce-calls)))))

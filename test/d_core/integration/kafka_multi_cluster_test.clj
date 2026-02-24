@@ -94,12 +94,12 @@
             producer-primary (kafka-producer/->KafkaProducer client-primary routing codec nil)
             producer-data (kafka-producer/->KafkaProducer client-data routing codec nil)
             producer (common-producer/->CommonProducer
-                       :kafka-primary
-                       {:kafka-primary producer-primary
-                        :kafka-data producer-data}
-                       routing
-                       nil
-                       nil)
+                      :kafka-primary
+                      {:kafka-primary producer-primary
+                       :kafka-data producer-data}
+                      routing
+                      nil
+                      nil)
             msg {:id (str (UUID/randomUUID))
                  :amount 12.5}
             consumer-primary (kc/make-consumer client-primary {:group-id (str "dcore-int-" (UUID/randomUUID))})

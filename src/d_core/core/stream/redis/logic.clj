@@ -73,10 +73,10 @@
     (let [parts (str/split id #"-")]
       (when (= 2 (count parts))
         (let [[ts-str seq-str] parts]
-        (try
-          [(Long/parseLong ts-str)
-           (Long/parseLong seq-str)]
-          (catch NumberFormatException _
+          (try
+            [(Long/parseLong ts-str)
+             (Long/parseLong seq-str)]
+            (catch NumberFormatException _
               nil)))))))
 
 (defn next-stream-id

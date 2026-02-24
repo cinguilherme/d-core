@@ -9,7 +9,6 @@
 
 ;;Or it could be a map of producer-name -> producer instance, but this needs to account that this producers have their life cycles handled by Duct system map and lifecycles.
 
-
 (defrecord CommonProducer [default-producer-key producers logger]
   ;; Holds all producers that it can delegate to.
   p/Producer

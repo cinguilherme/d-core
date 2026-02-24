@@ -36,7 +36,7 @@
      - `opts` is engine-specific and may include e.g. builder fns, result shape, etc.
 
      Implementations MUST throw (ex-info) with a consistent map when unsupported,
-     rather than silently NO-OP." ))
+     rather than silently NO-OP."))
 
 (defprotocol SimpleSQLAdminProtocol
   (create-database! [_ database-name opts]

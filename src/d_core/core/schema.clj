@@ -34,11 +34,11 @@
   [schema strictness]
   (let [closed? (strictness->closed strictness)]
     (walk/postwalk
-      (fn [x]
-        (if (map-schema? x)
-          (set-map-closed x closed?)
-          x))
-      schema)))
+     (fn [x]
+       (if (map-schema? x)
+         (set-map-closed x closed?)
+         x))
+     schema)))
 
 (defn explain
   "Returns a compact explain payload safe to include in ex-data / DLQ.

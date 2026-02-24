@@ -15,7 +15,7 @@
   [conn stream group]
   (try
     (car/wcar conn
-      (car/xgroup-create stream group "0" "MKSTREAM"))
+              (car/xgroup-create stream group "0" "MKSTREAM"))
     (catch Exception _e
       nil)))
 
@@ -79,10 +79,10 @@
     ;; To stay safe, read one stream at a time.
     (doseq [dlq-stream streams]
       (let [resp (car/wcar conn
-                   (car/xreadgroup "GROUP" group consumer
-                                   "BLOCK" (str block-ms)
-                                   "COUNT" (str count)
-                                   "STREAMS" dlq-stream ">"))]
+                           (car/xreadgroup "GROUP" group consumer
+                                           "BLOCK" (str block-ms)
+                                           "COUNT" (str count)
+                                           "STREAMS" dlq-stream ">"))]
         ;; resp shape: [[stream [[id [field value ...]] ...]]]
         (doseq [[stream entries] resp
                 [id fields] entries]
@@ -95,11 +95,11 @@
                 subscription-id (get-in original [:metadata :dlq :subscription-id])
                 dl-cfg (routing/deadletter-config routing topic subscription-id)
                 original (dlmeta/enrich-for-deadletter original
-                                                      {:topic topic
-                                                       :runtime :redis-replay
-                                                       :source {:dlq-stream stream
-                                                                :redis-id id}
-                                                       :deadletter dl-cfg})
+                                                       {:topic topic
+                                                        :runtime :redis-replay
+                                                        :source {:dlq-stream stream
+                                                                 :redis-id id}
+                                                        :deadletter dl-cfg})
                 original (inc-attempt original)
                 decision (when policy (policy/classify policy original {:error :replay} {}))
                 status (or (:status decision) (get-in original [:metadata :dlq :status]) :eligible)

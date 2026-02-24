@@ -117,25 +117,25 @@
 (defn- map-where->expr
   [m]
   (into
-    [:and]
-    (map (fn [[k v]]
-           (cond
-             (vector? v)
-             (let [[op rhs] v]
-               (case op
-                 :> [:> k rhs]
-                 :>= [:>= k rhs]
-                 :< [:< k rhs]
-                 :<= [:<= k rhs]
-                 :!= [:!= k rhs]
-                 :like [:like k rhs]
-                 :in [:in k rhs]
-                 := [:= k rhs]
-                 (throw (ex-info "Unknown map :where operator" {:op op :entry [k v]}))))
+   [:and]
+   (map (fn [[k v]]
+          (cond
+            (vector? v)
+            (let [[op rhs] v]
+              (case op
+                :> [:> k rhs]
+                :>= [:>= k rhs]
+                :< [:< k rhs]
+                :<= [:<= k rhs]
+                :!= [:!= k rhs]
+                :like [:like k rhs]
+                :in [:in k rhs]
+                := [:= k rhs]
+                (throw (ex-info "Unknown map :where operator" {:op op :entry [k v]}))))
 
-             :else
-             [:= k v])))
-    m))
+            :else
+            [:= k v])))
+   m))
 
 (defn- where->sql
   "Returns [sql params]. Supports:
@@ -226,8 +226,8 @@
                    " WHERE " where-sql
                    (or returning-sql ""))]
       (jdbc/execute! (sql-target datasource opts)
-                    (into [sql] (into set-params where-params))
-                    (or opts {}))))
+                     (into [sql] (into set-params where-params))
+                     (or opts {}))))
 
   (delete! [_ {:keys [table where] :as opts}]
     (when-not table

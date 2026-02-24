@@ -48,9 +48,9 @@
         strictness (:strictness scfg)]
     (when view
       (schema/validate! view
-                       (or (:msg envelope) envelope)
-                       {:schema-id subscription-id
-                        :strictness strictness})))
+                        (or (:msg envelope) envelope)
+                        {:schema-id subscription-id
+                         :strictness strictness})))
   envelope)
 
 (defn- resolve-client
@@ -92,10 +92,10 @@
                :queue (:queue ctx)
                :failure/type failure-type})
   (let [dlq-envelope (enrich-dlq envelope (assoc ctx
-                                                :delivery-tag delivery-tag
-                                                :raw-payload raw-payload
-                                                :redelivered? redelivered?
-                                                :status :poison))]
+                                                 :delivery-tag delivery-tag
+                                                 :raw-payload raw-payload
+                                                 :redelivered? redelivered?
+                                                 :status :poison))]
     (if dead-letter
       (let [dl-res (dl/send-dead-letter! dead-letter dlq-envelope
                                          {:error exception
@@ -121,10 +121,10 @@
                :error (.getMessage ^Throwable exception)})
   (if dead-letter
     (let [dlq-envelope (enrich-dlq envelope (assoc ctx
-                                                  :delivery-tag delivery-tag
-                                                  :raw-payload raw-payload
-                                                  :redelivered? redelivered?
-                                                  :status nil))
+                                                   :delivery-tag delivery-tag
+                                                   :raw-payload raw-payload
+                                                   :redelivered? redelivered?
+                                                   :status nil))
           dl-res (dl/send-dead-letter! dead-letter dlq-envelope
                                        {:error exception
                                         :stacktrace (with-out-str (.printStackTrace ^Throwable exception))}
@@ -150,11 +150,11 @@
                            (codec/decode codec payload)
                            (catch Exception e
                              (send-poison! ctx {:failure-type :codec-decode-failed
-                                               :envelope nil
-                                               :exception e
-                                               :delivery-tag delivery-tag
-                                               :raw-payload payload
-                                               :redelivered? redelivered?})
+                                                :envelope nil
+                                                :exception e
+                                                :delivery-tag delivery-tag
+                                                :raw-payload payload
+                                                :redelivered? redelivered?})
                              ::poison))]
         (when-not (= msg-envelope ::poison)
           (let [valid?
@@ -165,11 +165,11 @@
                     (if (= :schema-invalid (:failure/type (ex-data e)))
                       (do
                         (send-poison! ctx {:failure-type :schema-invalid
-                                          :envelope msg-envelope
-                                          :exception e
-                                          :delivery-tag delivery-tag
-                                          :raw-payload payload
-                                          :redelivered? redelivered?})
+                                           :envelope msg-envelope
+                                           :exception e
+                                           :delivery-tag delivery-tag
+                                           :raw-payload payload
+                                           :redelivered? redelivered?})
                         false)
                       (throw e))))]
             (when valid?
@@ -272,7 +272,7 @@
         threads
         (into {}
               (map (fn [[subscription-id {:keys [topic handler options schema client producer]
-                                         :or {options {}}}]]
+                                          :or {options {}}}]]
                      (let [topic (or topic :default)
                            client-key (or client
                                           producer
@@ -285,18 +285,18 @@
                                           :known (when (map? rabbitmq) (keys rabbitmq))})))
                        [subscription-id
                         (start-rabbitmq-subscription!
-                          {:subscription-id subscription-id
-                           :rabbitmq rabbitmq-client
-                           :routing routing
-                           :codec codec
-                           :handler handler
-                           :dead-letter dead-letter
-                           :stop? stop?
-                           :logger logger
-                           :topic topic
-                           :options options
-                           :client-key client-key
-                           :subscription-schema schema})])))
+                         {:subscription-id subscription-id
+                          :rabbitmq rabbitmq-client
+                          :routing routing
+                          :codec codec
+                          :handler handler
+                          :dead-letter dead-letter
+                          :stop? stop?
+                          :logger logger
+                          :topic topic
+                          :options options
+                          :client-key client-key
+                          :subscription-schema schema})])))
               rabbitmq-subs)]
     {:stop? stop?
      :threads threads

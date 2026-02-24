@@ -20,8 +20,8 @@
           old-last-id (get-in @state [:last-ids stream])
           _ (swap! state logic/append-entries-state stream payloads-bytes now)]
       (logic/notify-waiters! state stream)
-      (let [res (logic/query-entries (get-in @state [:streams stream]) 
-                                    {:direction :forward :cursor old-last-id})]
+      (let [res (logic/query-entries (get-in @state [:streams stream])
+                                     {:direction :forward :cursor old-last-id})]
         (map :id (:entries res)))))
 
   (read-payloads [_ stream opts]

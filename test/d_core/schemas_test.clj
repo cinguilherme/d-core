@@ -1,8 +1,8 @@
 (ns d-core.schemas-test
-(:require [clojure.test :refer [deftest is testing]]
-          [d-core.core.schema :as dcs]
-          [d-core.core.producers.common :as common-producer]
-          [d-core.core.producers.protocol :as p]))
+  (:require [clojure.test :refer [deftest is testing]]
+            [d-core.core.schema :as dcs]
+            [d-core.core.producers.common :as common-producer]
+            [d-core.core.producers.protocol :as p]))
 
 (deftest schema-apply-strictness
   (testing "apply-strictness propagates :closed to nested :map schemas"

@@ -81,11 +81,11 @@
 (defn make-client
   [{:keys [id base-url default-headers http-opts policies]}]
   (->HttpClient
-    id
-    base-url
-    default-headers
-    (merge {:throw-exceptions false} http-opts)
-    (build-policies policies)))
+   id
+   base-url
+   default-headers
+   (merge {:throw-exceptions false} http-opts)
+   (build-policies policies)))
 
 (defn- merge-policy-config
   [policy override]

@@ -106,7 +106,6 @@
         (finally
           (ig/halt-key! :d-core.core.consumers.consumer/consumer component))))))
 
-
 (deftest publish-config-does-not-start-consumers
   (testing "publish targets do not start consumers without subscriptions"
     (let [queues (make-queues)

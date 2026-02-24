@@ -104,8 +104,7 @@
     (let [backend (make-backend)]
       (is (thrown-with-msg? clojure.lang.ExceptionInfo
                             #"requires :direction"
-                            (p/read-payloads backend "s1" {:limit 1})))))
-  )
+                            (p/read-payloads backend "s1" {:limit 1}))))))
 
 (deftest utility-operations-test
   (testing "trim translates strict > id into xtrim MINID next-id"

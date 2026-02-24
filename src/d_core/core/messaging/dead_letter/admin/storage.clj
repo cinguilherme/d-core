@@ -102,7 +102,7 @@
                 ack (producer/produce! producer msg (cond-> {:topic topic
                                                              :dlq/id dlq-id
                                                              :dlq/payload-hash (get-in envelope [:metadata :dlq :payload-hash])}
-                                                     producer-key (assoc :producer producer-key)))]
+                                                      producer-key (assoc :producer producer-key)))]
             {:ok true :dlq-id dlq-id :topic topic :ack ack})))
       (catch Exception e
         (logger/log logger :error ::dlq-admin-replay-failed {:dlq-id dlq-id :error (.getMessage e)})

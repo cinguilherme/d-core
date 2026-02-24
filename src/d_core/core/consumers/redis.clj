@@ -13,7 +13,7 @@
   (try
     (car/wcar conn
       ;; Create group starting at 0, create stream if missing.
-      (car/xgroup-create stream group "0" "MKSTREAM"))
+              (car/xgroup-create stream group "0" "MKSTREAM"))
     (catch Exception _e
       ;; Ignore BUSYGROUP and similar startup races.
       nil)))
@@ -57,9 +57,9 @@
                :redis-id redis-id
                :failure/type failure-type})
   (let [dlq-envelope (enrich-dlq envelope (assoc ctx
-                                                :redis-id redis-id
-                                                :raw-payload raw-payload
-                                                :status :poison))]
+                                                 :redis-id redis-id
+                                                 :raw-payload raw-payload
+                                                 :status :poison))]
     (if dead-letter
       (let [dl-res (dl/send-dead-letter! dead-letter dlq-envelope
                                          {:error exception
@@ -83,9 +83,9 @@
         strictness (:strictness scfg)]
     (when view
       (schema/validate! view
-                       (or (:msg envelope) envelope)
-                       {:schema-id subscription-id
-                        :strictness strictness})))
+                        (or (:msg envelope) envelope)
+                        {:schema-id subscription-id
+                         :strictness strictness})))
   envelope)
 
 (defn- send-handler-failure!
@@ -97,9 +97,9 @@
                :error (.getMessage ^Throwable exception)})
   (if dead-letter
     (let [dlq-envelope (enrich-dlq envelope (assoc ctx
-                                                  :redis-id redis-id
-                                                  :raw-payload raw-payload
-                                                  :status nil))
+                                                   :redis-id redis-id
+                                                   :raw-payload raw-payload
+                                                   :status nil))
           dl-res (dl/send-dead-letter! dead-letter dlq-envelope
                                        {:error exception
                                         :stacktrace (with-out-str (.printStackTrace ^Throwable exception))}
@@ -127,10 +127,10 @@
                        (codec/decode codec payload)
                        (catch Exception e
                          (send-poison! ctx {:failure-type :codec-decode-failed
-                                           :envelope nil
-                                           :exception e
-                                           :redis-id redis-id
-                                           :raw-payload payload})
+                                            :envelope nil
+                                            :exception e
+                                            :redis-id redis-id
+                                            :raw-payload payload})
                          ::poison))]
         (when-not (= envelope ::poison)
           (let [valid?
@@ -141,10 +141,10 @@
                     (if (= :schema-invalid (:failure/type (ex-data e)))
                       (do
                         (send-poison! ctx {:failure-type :schema-invalid
-                                          :envelope envelope
-                                          :exception e
-                                          :redis-id redis-id
-                                          :raw-payload payload})
+                                           :envelope envelope
+                                           :exception e
+                                           :redis-id redis-id
+                                           :raw-payload payload})
                         false)
                       (throw e))))]
             (when valid?
@@ -185,10 +185,10 @@
       (while (not @stop?)
         (let [resp (car/wcar conn
                      ;; BLOCK for up to block-ms. COUNT 1 for now.
-                     (car/xreadgroup "GROUP" group consumer-name
-                                     "BLOCK" (str block-ms)
-                                     "COUNT" "1"
-                                     "STREAMS" stream ">"))]
+                             (car/xreadgroup "GROUP" group consumer-name
+                                             "BLOCK" (str block-ms)
+                                             "COUNT" "1"
+                                             "STREAMS" stream ">"))]
           (doseq [[_stream entries] resp
                   [redis-id fields] entries]
             (process-entry! ctx redis-id fields))))
@@ -205,7 +205,7 @@
         threads
         (into {}
               (map (fn [[subscription-id {:keys [topic handler options schema client producer]
-                                         :or {options {}}}]]
+                                          :or {options {}}}]]
                      (let [topic (or topic :default)
                            client-key (or client
                                           producer

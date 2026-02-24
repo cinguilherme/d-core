@@ -8,8 +8,8 @@
         backoff (fn [n] (swap! backoff-args conj n) 0)]
     (is (= :ok
            (retriable 5 backoff [RuntimeException]
-             (swap! attempts inc)
-             :ok)))
+                      (swap! attempts inc)
+                      :ok)))
     (is (= 1 @attempts))
     (is (= [] @backoff-args))))
 
@@ -19,10 +19,10 @@
         backoff (fn [n] (swap! backoff-args conj n) 0)]
     (is (= :ok
            (retriable 5 backoff [RuntimeException]
-             (swap! attempts inc)
-             (if (< @attempts 3)
-               (throw (RuntimeException. "fail"))
-               :ok))))
+                      (swap! attempts inc)
+                      (if (< @attempts 3)
+                        (throw (RuntimeException. "fail"))
+                        :ok))))
     (is (= 3 @attempts))
     ;; two failures -> backoff called with 1-based failure counts
     (is (= [1 2] @backoff-args))))
@@ -33,8 +33,8 @@
         backoff (fn [n] (swap! backoff-args conj n) 0)]
     (is (thrown? RuntimeException
                  (retriable 5 backoff [IllegalArgumentException]
-                   (swap! attempts inc)
-                   (throw (RuntimeException. "no retry")))))
+                            (swap! attempts inc)
+                            (throw (RuntimeException. "no retry")))))
     (is (= 1 @attempts))
     (is (= [] @backoff-args))))
 
@@ -44,8 +44,8 @@
         backoff (fn [n] (swap! backoff-args conj n) 0)]
     (is (thrown? RuntimeException
                  (retriable 3 backoff [RuntimeException]
-                   (swap! attempts inc)
-                   (throw (RuntimeException. "always fails")))))
+                            (swap! attempts inc)
+                            (throw (RuntimeException. "always fails")))))
     ;; total attempts includes the initial one
     (is (= 3 @attempts))
     ;; backoff happens only before retries (after failures 1 and 2)
@@ -56,8 +56,8 @@
         backoff (constantly 0)]
     (is (= :ok
            (retriable 3 backoff [RuntimeException]
-             (swap! attempts inc)
-             (if (< @attempts 2)
-               (throw (ex-info "subclass of RuntimeException" {:attempt @attempts}))
-               :ok))))))
+                      (swap! attempts inc)
+                      (if (< @attempts 2)
+                        (throw (ex-info "subclass of RuntimeException" {:attempt @attempts}))
+                        :ok))))))
 

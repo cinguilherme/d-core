@@ -25,7 +25,7 @@
           payload (codec/encode codec envelope)
           _ (logger/log logger :info ::producing-message {:topic topic :stream stream :trace trace})
           id (car/wcar (:conn redis-client)
-               (car/xadd stream "*" "payload" payload))]
+                       (car/xadd stream "*" "payload" payload))]
       {:ok true
        :backend :redis
        :topic topic

@@ -76,7 +76,7 @@
     (testing "cursors"
       (p/set-cursor! backend "c1" "val1")
       (is (= "val1" (p/get-cursor backend "c1"))))
-    
+
     (testing "next-sequence"
       (is (= 1 (p/next-sequence! backend "s1")))
       (is (= 2 (p/next-sequence! backend "s1"))))

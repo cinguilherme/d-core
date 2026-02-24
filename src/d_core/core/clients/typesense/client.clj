@@ -20,21 +20,21 @@
          api-key "typesense"
          timeout-ms 5000}}]
   (->TypesenseClient
-    (normalize-endpoint endpoint)
-    api-key
-    {:socket-timeout timeout-ms
-     :conn-timeout timeout-ms
+   (normalize-endpoint endpoint)
+   api-key
+   {:socket-timeout timeout-ms
+    :conn-timeout timeout-ms
      ;; We'll handle non-2xx ourselves so smoke tests can treat 404/409 cleanly.
-     :throw-exceptions false}))
+    :throw-exceptions false}))
 
 (defn- ->query-string [query]
   (when (seq query)
     (str/join
-      "&"
-      (for [[k v] query
-            :let [k (name k)
-                  v (if (coll? v) (str/join "," (map str v)) (str v))]]
-        (str (URLEncoder/encode k "UTF-8") "=" (URLEncoder/encode v "UTF-8"))))))
+     "&"
+     (for [[k v] query
+           :let [k (name k)
+                 v (if (coll? v) (str/join "," (map str v)) (str v))]]
+       (str (URLEncoder/encode k "UTF-8") "=" (URLEncoder/encode v "UTF-8"))))))
 
 (defn request!
   "Low-level Typesense request helper.
@@ -50,15 +50,15 @@
                  (when-let [qs (->query-string query)]
                    (str "?" qs)))
         req (merge
-              (:http-opts client)
-              {:method method
-               :url url
-               :headers (merge {"X-TYPESENSE-API-KEY" (:api-key client)
-                                "Accept" "application/json"}
-                               (or headers {}))}
-              (when (some? body)
-                {:content-type :json
-                 :body (json/generate-string body)}))
+             (:http-opts client)
+             {:method method
+              :url url
+              :headers (merge {"X-TYPESENSE-API-KEY" (:api-key client)
+                               "Accept" "application/json"}
+                              (or headers {}))}
+             (when (some? body)
+               {:content-type :json
+                :body (json/generate-string body)}))
         resp (http/request req)
         body-str (:body resp)
         parsed (try

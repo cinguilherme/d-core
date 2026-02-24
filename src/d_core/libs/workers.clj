@@ -24,11 +24,11 @@
   "Build a map of channel-id -> core.async channel from a channels config map."
   [channels]
   (reduce-kv
-    (fn [m k cfg]
-      (let [buf (channel-buffer cfg)]
-        (assoc m k (if buf (async/chan buf) (async/chan)))))
-    {}
-    channels))
+   (fn [m k cfg]
+     (let [buf (channel-buffer cfg)]
+       (assoc m k (if buf (async/chan buf) (async/chan)))))
+   {}
+   channels))
 
 (defn worker-ctx
   "Build the worker context map passed to worker functions."
@@ -219,15 +219,15 @@
   "Return a map of exposed worker-id -> {:channel ... :channel-id ... :put-mode ...}."
   [definition channels]
   (reduce-kv
-    (fn [m worker-id {:keys [kind in expose?]}]
-      (if (and (= kind :command) expose? in)
-        (let [cfg (get-in definition [:channels in])]
-          (assoc m worker-id {:channel (get channels in)
-                              :channel-id in
-                              :put-mode (:put-mode cfg)}))
-        m))
-    {}
-    (:workers definition)))
+   (fn [m worker-id {:keys [kind in expose?]}]
+     (if (and (= kind :command) expose? in)
+       (let [cfg (get-in definition [:channels in])]
+         (assoc m worker-id {:channel (get channels in)
+                             :channel-id in
+                             :put-mode (:put-mode cfg)}))
+       m))
+   {}
+   (:workers definition)))
 
 (defn start-workers
   "Start a workers runtime.

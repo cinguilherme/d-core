@@ -126,7 +126,7 @@
             (let [dlq-id (dlq-id-for-topic root-path :test-queue)]
               (is (some? dlq-id))
               (dl-admin/replay-deadletter! admin dlq-id {:topic :test-queue
-                                                        :producer :in-memory}))
+                                                         :producer :in-memory}))
             (is (wait-for #(some (fn [call] (= :fail-once (:handler call))) @calls) 1500)))
           (finally
             (ig/halt! system)

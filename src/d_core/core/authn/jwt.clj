@@ -226,8 +226,8 @@
         (str/trim (subs auth 7))))))
 
 (defrecord JwtAuthenticator
-  [issuer aud jwks jwks-uri jwks-cache-ttl-ms clock-skew-ms
-   tenant-claim scope-claim http-opts logger state]
+           [issuer aud jwks jwks-uri jwks-cache-ttl-ms clock-skew-ms
+            tenant-claim scope-claim http-opts logger state]
   p/Authenticator
   (authenticate [this request opts]
     (let [token (or (bearer-token request) (:token opts))]

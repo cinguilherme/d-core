@@ -66,9 +66,9 @@
         strictness (:strictness scfg)]
     (when view
       (schema/validate! view
-                       (or (:msg envelope) envelope)
-                       {:schema-id subscription-id
-                        :strictness strictness})))
+                        (or (:msg envelope) envelope)
+                        {:schema-id subscription-id
+                         :strictness strictness})))
   envelope)
 
 (defn- send-poison!
@@ -80,12 +80,12 @@
                :message-id message-id
                :failure/type failure-type})
   (let [dlq-envelope (enrich-dlq envelope (assoc ctx
-                                                :queue queue
-                                                :queue-url queue-url
-                                                :message-id message-id
-                                                :receipt-handle receipt-handle
-                                                :raw-payload raw-payload
-                                                :status :poison))]
+                                                 :queue queue
+                                                 :queue-url queue-url
+                                                 :message-id message-id
+                                                 :receipt-handle receipt-handle
+                                                 :raw-payload raw-payload
+                                                 :status :poison))]
     (if dead-letter
       (let [dl-res (dl/send-dead-letter! dead-letter dlq-envelope
                                          {:error exception
@@ -111,12 +111,12 @@
                :error (.getMessage ^Throwable exception)})
   (if dead-letter
     (let [dlq-envelope (enrich-dlq envelope (assoc ctx
-                                                  :queue queue
-                                                  :queue-url queue-url
-                                                  :message-id message-id
-                                                  :receipt-handle receipt-handle
-                                                  :raw-payload raw-payload
-                                                  :status nil))
+                                                   :queue queue
+                                                   :queue-url queue-url
+                                                   :message-id message-id
+                                                   :receipt-handle receipt-handle
+                                                   :raw-payload raw-payload
+                                                   :status nil))
           dl-res (dl/send-dead-letter! dead-letter dlq-envelope
                                        {:error exception
                                         :stacktrace (with-out-str (.printStackTrace ^Throwable exception))}
@@ -208,9 +208,9 @@
         (while (not @stop?)
           (try
             (let [messages (sc/receive-messages! sqs queue-url
-                                                {:max-messages max-messages
-                                                 :wait-seconds wait-seconds
-                                                 :visibility-timeout visibility-timeout})]
+                                                 {:max-messages max-messages
+                                                  :wait-seconds wait-seconds
+                                                  :visibility-timeout visibility-timeout})]
               (if (seq messages)
                 (doseq [msg messages]
                   (process-message! ctx msg))
@@ -230,7 +230,7 @@
         threads
         (into {}
               (map (fn [[subscription-id {:keys [topic handler options schema client producer]
-                                         :or {options {}}}]]
+                                          :or {options {}}}]]
                      (let [topic (or topic :default)
                            client-key (or client
                                           producer
@@ -243,18 +243,18 @@
                                           :known (when (map? sqs) (keys sqs))})))
                        [subscription-id
                         (start-sqs-subscription!
-                          {:subscription-id subscription-id
-                           :sqs sqs-client
-                           :routing routing
-                           :codec codec
-                           :handler handler
-                           :dead-letter dead-letter
-                           :stop? stop?
-                           :logger logger
-                           :topic topic
-                           :options options
-                           :client-key client-key
-                           :subscription-schema schema})])))
+                         {:subscription-id subscription-id
+                          :sqs sqs-client
+                          :routing routing
+                          :codec codec
+                          :handler handler
+                          :dead-letter dead-letter
+                          :stop? stop?
+                          :logger logger
+                          :topic topic
+                          :options options
+                          :client-key client-key
+                          :subscription-schema schema})])))
               sqs-subs)]
     {:stop? stop?
      :threads threads

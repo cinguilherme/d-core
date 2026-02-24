@@ -159,18 +159,18 @@
   (let [^KafkaConsumer c (:consumer cc)
         records (.poll c (Duration/ofMillis (long timeout-ms)))]
     (reduce
-      (fn [acc ^ConsumerRecord r]
-        (conj acc {:topic (.topic r)
-                   :partition (.partition r)
-                   :offset (.offset r)
-                   :timestamp (.timestamp r)
-                   :key (.key r)
-                   :value (.value r)
-                   :headers (into {}
-                                  (map (fn [h] [(.key h) (.value h)]))
-                                  (.headers r))}))
-      []
-      records)))
+     (fn [acc ^ConsumerRecord r]
+       (conj acc {:topic (.topic r)
+                  :partition (.partition r)
+                  :offset (.offset r)
+                  :timestamp (.timestamp r)
+                  :key (.key r)
+                  :value (.value r)
+                  :headers (into {}
+                                 (map (fn [h] [(.key h) (.value h)]))
+                                 (.headers r))}))
+     []
+     records)))
 
 (defn commit!
   "Commit offsets synchronously."

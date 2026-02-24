@@ -4,33 +4,34 @@
             [d-core.core.idempotency.redis :as redis]))
 
 (deftest claim-returns-completed-when-result-exists
-  (testing "claim returns completed when result already exists"
+  (testing "claim returns completed when lua check returns completed payload"
     (let [idempotency (redis/->RedisIdempotency :redis "dcore:idemp:" 1000)]
-      (with-redefs [d-core.core.idempotency.redis/read-result (fn [_ key]
-                                                                (when (= key "dcore:idemp:k1:result")
-                                                                  (pr-str {:message-id "m1"})))
-                    d-core.core.idempotency.redis/claim-pending! (fn [_ _ _]
-                                                                   (throw (ex-info "should not claim" {})))]
+      (with-redefs [d-core.core.idempotency.redis/claim-or-read-result! (fn [_ result-k pending-k ttl-ms]
+                                                                          (when (and (= result-k "dcore:idemp:k1:result")
+                                                                                     (= pending-k "dcore:idemp:k1:pending")
+                                                                                     (= ttl-ms 5000))
+                                                                            [2 (pr-str {:message-id "m1"})]))]
         (is (= {:ok true :status :completed :response {:message-id "m1"}}
                (p/claim! idempotency "k1" 5000)))))))
 
 (deftest claim-returns-claimed-on-first-acquire
-  (testing "claim returns claimed when pending key is acquired"
+  (testing "claim returns claimed when lua check returns acquired"
     (let [idempotency (redis/->RedisIdempotency :redis "dcore:idemp:" 1000)
           calls (atom [])]
-      (with-redefs [d-core.core.idempotency.redis/read-result (fn [_ _] nil)
-                    d-core.core.idempotency.redis/claim-pending! (fn [_ key ttl-ms]
-                                                                   (swap! calls conj {:key key :ttl-ms ttl-ms})
-                                                                   "OK")]
+      (with-redefs [d-core.core.idempotency.redis/claim-or-read-result! (fn [_ result-k pending-k ttl-ms]
+                                                                          (swap! calls conj {:result-key result-k :pending-key pending-k :ttl-ms ttl-ms})
+                                                                          [1])]
         (is (= {:ok true :status :claimed}
                (p/claim! idempotency "k2" 7000)))
-        (is (= [{:key "dcore:idemp:k2:pending" :ttl-ms 7000}] @calls))))))
+        (is (= [{:result-key "dcore:idemp:k2:result"
+                 :pending-key "dcore:idemp:k2:pending"
+                 :ttl-ms 7000}]
+               @calls))))))
 
 (deftest claim-returns-in-progress-when-already-claimed
-  (testing "claim returns in-progress when pending exists and no completed result"
+  (testing "claim returns in-progress when lua check returns in-progress"
     (let [idempotency (redis/->RedisIdempotency :redis "dcore:idemp:" 1000)]
-      (with-redefs [d-core.core.idempotency.redis/read-result (fn [_ _] nil)
-                    d-core.core.idempotency.redis/claim-pending! (fn [_ _ _] nil)]
+      (with-redefs [d-core.core.idempotency.redis/claim-or-read-result! (fn [_ _ _ _] [0])]
         (is (= {:ok true :status :in-progress}
                (p/claim! idempotency "k3" 2000)))))))
 

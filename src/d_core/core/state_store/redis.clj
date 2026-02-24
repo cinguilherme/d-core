@@ -8,7 +8,10 @@
   (str "local current = redis.call('HGET', KEYS[1], ARGV[1]);"
        "if (not current) or (tonumber(ARGV[2]) > tonumber(current)) then "
        "redis.call('HSET', KEYS[1], ARGV[1], ARGV[2]);"
+       "if tonumber(ARGV[3]) > 0 then redis.call('PEXPIRE', KEYS[1], ARGV[3]); end;"
        "return 1;"
+       "end;"
+       "if tonumber(ARGV[3]) > 0 then redis.call('PEXPIRE', KEYS[1], ARGV[3]); end;"
        "end;"
        "return 0;"))
 
@@ -41,9 +44,9 @@
     0))
 
 (defn eval-set-max!
-  [redis-client key field value]
+  [redis-client key field value ttl-ms]
   (car/wcar (redis-utils/conn redis-client)
-            (car/eval set-max-field-lua 1 key field value)))
+            (car/eval set-max-field-lua 1 key field value (str (long (or ttl-ms 0))))))
 
 (defn pexpire!
   [redis-client key ttl-ms]
@@ -86,9 +89,7 @@
     (hdel! redis-client key fields))
 
   (set-max-field! [_ key field value {:keys [ttl-ms]}]
-    (let [updated? (= 1 (eval-set-max! redis-client key field (str value)))]
-      (when (and ttl-ms (pos? (long ttl-ms)))
-        (pexpire! redis-client key (long ttl-ms)))
+    (let [updated? (= 1 (eval-set-max! redis-client key field (str value) ttl-ms))]
       updated?))
 
   (expire! [_ key ttl-ms _opts]

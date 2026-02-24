@@ -30,6 +30,25 @@
   (car/wcar (redis-utils/conn redis-client)
             (car/get key)))
 
+(def ^:private claim-or-read-result-lua
+  (str
+   "local result = redis.call('GET', KEYS[1]);"
+   "if result then return {2, result}; end;"
+   "local claimed = redis.call('SET', KEYS[2], '1', 'NX', 'PX', ARGV[1]);"
+   "if claimed then return {1}; end;"
+   "local completed = redis.call('GET', KEYS[1]);"
+   "if completed then return {2, completed}; end;"
+   "return {0};"))
+
+(defn claim-or-read-result!
+  [redis-client result-key pending-key ttl-ms]
+  (car/wcar (redis-utils/conn redis-client)
+            (car/eval claim-or-read-result-lua
+                      2
+                      result-key
+                      pending-key
+                      (str ttl-ms))))
+
 (defn claim-pending!
   [redis-client key ttl-ms]
   (car/wcar (redis-utils/conn redis-client)
@@ -52,15 +71,21 @@
   (claim! [_ key ttl-ms]
     (let [ttl-ms (long (or ttl-ms default-ttl-ms 0))
           result-k (result-key prefix key)
-          pending-k (pending-key prefix key)]
-      (if-let [existing (some-> (read-result redis-client result-k) decode-response)]
-        {:ok true :status :completed :response existing}
-        (let [claimed? (= "OK" (claim-pending! redis-client pending-k ttl-ms))]
-          (if claimed?
-            {:ok true :status :claimed}
-            (if-let [completed (some-> (read-result redis-client result-k) decode-response)]
-              {:ok true :status :completed :response completed}
-              {:ok true :status :in-progress}))))))
+          pending-k (pending-key prefix key)
+          [status-code payload] (or (claim-or-read-result! redis-client result-k pending-k ttl-ms)
+                                    [0 nil])
+          status-code (long (or status-code 0))]
+      (cond
+        (= 2 status-code)
+        {:ok true
+         :status :completed
+         :response (decode-response payload)}
+
+        (= 1 status-code)
+        {:ok true :status :claimed}
+
+        :else
+        {:ok true :status :in-progress})))
 
   (complete! [_ key response ttl-ms]
     (let [ttl-ms (long (or ttl-ms default-ttl-ms 0))

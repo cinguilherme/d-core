@@ -54,18 +54,14 @@
         (is (= 1 (p/expire! store "k" 9000 nil)))))))
 
 (deftest set-max-field-test
-  (testing "set-max-field returns true when value updates and applies ttl"
+  (testing "set-max-field returns true and passes ttl in single eval operation"
     (let [store (redis/->RedisStateStore :redis)
           calls (atom [])]
-      (with-redefs [d-core.core.state-store.redis/eval-set-max! (fn [_ key field value]
-                                                                  (swap! calls conj {:op :max :key key :field field :value value})
-                                                                  1)
-                    d-core.core.state-store.redis/pexpire! (fn [_ key ttl-ms]
-                                                             (swap! calls conj {:op :ttl :key key :ttl-ms ttl-ms})
-                                                             1)]
+      (with-redefs [d-core.core.state-store.redis/eval-set-max! (fn [_ key field value ttl-ms]
+                                                                  (swap! calls conj {:op :max :key key :field field :value value :ttl-ms ttl-ms})
+                                                                  1)]
         (is (true? (p/set-max-field! store "k" "user-1" 42 {:ttl-ms 1000})))
-        (is (= [{:op :max :key "k" :field "user-1" :value "42"}
-                {:op :ttl :key "k" :ttl-ms 1000}]
+        (is (= [{:op :max :key "k" :field "user-1" :value "42" :ttl-ms 1000}]
                @calls))))))
 
 (deftest sorted-set-operations-test

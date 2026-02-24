@@ -33,7 +33,7 @@
             (throw e))
           (finally
             (record-metrics! metrics instruments :append
-                             (elapsed-seconds start) @status 
+                             (elapsed-seconds start) @status
                              (when payload-bytes (alength ^bytes payload-bytes))))))))
 
   (append-batch! [_ stream payloads-bytes]
@@ -49,7 +49,7 @@
             (throw e))
           (finally
             (record-metrics! metrics instruments :append-batch
-                             (elapsed-seconds start) @status 
+                             (elapsed-seconds start) @status
                              total-bytes))))))
 
   (read-payloads [_ stream opts]
@@ -60,8 +60,8 @@
             bc     (volatile! 0)]
         (try
           (let [result (p/read-payloads backend stream opts)]
-            (vreset! bc (reduce (fn [acc entry] 
-                                  (+ acc (if-let [p (:payload entry)] (alength ^bytes p) 0))) 
+            (vreset! bc (reduce (fn [acc entry]
+                                  (+ acc (if-let [p (:payload entry)] (alength ^bytes p) 0)))
                                 0 (:entries result)))
             result)
           (catch Exception e

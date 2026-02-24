@@ -12,10 +12,10 @@
     (let [now (System/currentTimeMillis)]
       (testing "same millisecond increments sequence"
         (is (= (str now "-1") (logic/next-id (str now "-0") now))))
-      
+
       (testing "new millisecond resets sequence"
         (is (= (str (+ now 1) "-0") (logic/next-id (str now "-5") (+ now 1)))))
-      
+
       (testing "monotonicity even if clock moves backward"
         (is (= (str now "-1") (logic/next-id (str now "-0") (- now 100))))))))
 
@@ -51,7 +51,7 @@
     (is (= ["1000-0" "1000-1"] (keys (get-in state [:streams "s1"]))))
     (is (= ["a" "b"] (vals (get-in state [:streams "s1"]))))
     (is (= "1000-1" (get-in state [:last-ids "s1"])))
-    
+
     (testing "appended batch respects last-id"
       (let [state2 (logic/append-entries-state state "s1" ["c"] now)]
         (is (= "1000-2" (get-in state2 [:last-ids "s1"])))

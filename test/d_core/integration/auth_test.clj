@@ -60,9 +60,9 @@
 (defn- service-token
   []
   (let [client (token-client/make-client
-                 {:token-url (token-url)
-                  :client-id "d-core-service"
-                  :client-secret "d-core-secret"})]
+                {:token-url (token-url)
+                 :client-id "d-core-service"
+                 :client-secret "d-core-secret"})]
     (:access-token (token-client/client-credentials client {}))))
 
 (defn- authenticator

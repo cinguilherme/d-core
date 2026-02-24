@@ -9,7 +9,6 @@
 
 (def db-uri "datomic:dev://localhost:4334/d-core")
 
-
 (d/create-database db-uri)
 
 (def db-uri-secure "datomic:dev://localhost:4334/d-core?password=datomic")
@@ -22,13 +21,10 @@
                    :db/valueType :db.type/string
                    :db/cardinality :db.cardinality/one}])
 
-
 (d/transact conn [{:db/id 1
-                   :user/name "John"
-                   }
+                   :user/name "John"}
                   {:db/id 2
-                   :user/name "Jane"
-                   }])
+                   :user/name "Jane"}])
 
 (d/q '[:find ?e :where [?e :user/name]] (d/db conn))
 (d/pull (d/db conn) [:user/name] 1)

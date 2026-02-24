@@ -31,7 +31,7 @@
       (let [dir (temp-dir)
             logger (:logger (h-logger/make-test-logger))
             system (ig/init {:d-core.core.cache.local-file/local-file {:root-path (.getPath dir)
-                                                                        :logger logger}})
+                                                                       :logger logger}})
             cache (:d-core.core.cache.local-file/local-file system)
             base-key (str "dcore.int.local-file." (UUID/randomUUID))
             key1 (str base-key ":k1/with spaces")

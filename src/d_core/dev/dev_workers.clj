@@ -170,7 +170,6 @@
 ;;     (recur)))
 ;; (stats-snapshot @example-system)
 
-
 ;; after this call my system is running.
 
 (def image-url "https://images.unsplash.com/photo-1761839256547-0a1cd11b6dfb?q=80&w=2338&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDF8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D")

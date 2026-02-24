@@ -46,11 +46,11 @@
           redis-id "1-0"
           fields (make-test-fields "test-payload")]
       (with-redefs [d-core.core.consumers.redis/ack! (fn [conn stream group r-id]
-                                   (swap! ack-calls conj {:conn conn
-                                                          :stream stream
-                                                          :group group
-                                                          :redis-id r-id})
-                                   :ok)]
+                                                       (swap! ack-calls conj {:conn conn
+                                                                              :stream stream
+                                                                              :group group
+                                                                              :redis-id r-id})
+                                                       :ok)]
         (#'redis/process-entry! ctx redis-id fields)
         (is (= 1 (count @handler-calls)))
         (is (= {:msg {:data "test"}} (first @handler-calls)))
@@ -84,8 +84,8 @@
           redis-id "1-0"
           fields (make-test-fields "bad-payload")]
       (with-redefs [d-core.core.consumers.redis/ack! (fn [_conn _stream _group r-id]
-                                   (swap! ack-calls conj r-id)
-                                   :ok)]
+                                                       (swap! ack-calls conj r-id)
+                                                       :ok)]
         (#'redis/process-entry! ctx redis-id fields)
         (is (= 0 (count @handler-calls)))
         (is (= 1 (count @dl-calls)))
@@ -120,8 +120,8 @@
           redis-id "1-0"
           fields (make-test-fields "test-payload")]
       (with-redefs [d-core.core.consumers.redis/ack! (fn [_conn _stream _group r-id]
-                                   (swap! ack-calls conj r-id)
-                                   :ok)]
+                                                       (swap! ack-calls conj r-id)
+                                                       :ok)]
         (#'redis/process-entry! ctx redis-id fields)
         (is (= 0 (count @handler-calls)))
         (is (= 1 (count @dl-calls)))
@@ -152,8 +152,8 @@
           redis-id "1-0"
           fields (make-test-fields "test-payload")]
       (with-redefs [d-core.core.consumers.redis/ack! (fn [_conn _stream _group r-id]
-                                   (swap! ack-calls conj r-id)
-                                   :ok)]
+                                                       (swap! ack-calls conj r-id)
+                                                       :ok)]
         (#'redis/process-entry! ctx redis-id fields)
         (is (= 1 (count @dl-calls)))
         (let [dl-call (first @dl-calls)]
@@ -184,8 +184,8 @@
           redis-id "1-0"
           fields (make-test-fields "test-payload")]
       (with-redefs [d-core.core.consumers.redis/ack! (fn [_conn _stream _group r-id]
-                                   (swap! ack-calls conj r-id)
-                                   :ok)]
+                                                       (swap! ack-calls conj r-id)
+                                                       :ok)]
         (#'redis/process-entry! ctx redis-id fields)
         (is (= 1 (count @dl-calls)))
         (is (= 0 (count @ack-calls)))
@@ -205,8 +205,8 @@
           redis-id "1-0"
           fields (make-test-fields "test-payload")]
       (with-redefs [d-core.core.consumers.redis/ack! (fn [_conn _stream _group r-id]
-                                   (swap! ack-calls conj r-id)
-                                   :ok)]
+                                                       (swap! ack-calls conj r-id)
+                                                       :ok)]
         (#'redis/process-entry! ctx redis-id fields)
         (is (= 0 (count @ack-calls)))
         (is (some #(= :d-core.core.consumers.redis/no-dlq-configured (:event %)) @logs))))))
@@ -225,8 +225,8 @@
           redis-id "1-0"
           fields (make-test-fields "bad-payload")]
       (with-redefs [d-core.core.consumers.redis/ack! (fn [_conn _stream _group r-id]
-                                   (swap! ack-calls conj r-id)
-                                   :ok)]
+                                                       (swap! ack-calls conj r-id)
+                                                       :ok)]
         (#'redis/process-entry! ctx redis-id fields)
         (is (= 1 (count @ack-calls)))
         (is (some #(= :d-core.core.consumers.redis/redis-poison-message (:event %)) @logs))
@@ -299,8 +299,8 @@
           redis-id "1-0"
           fields (make-test-fields "test-payload")]
       (with-redefs [d-core.core.consumers.redis/ack! (fn [_conn _stream _group r-id]
-                                   (swap! ack-calls conj r-id)
-                                   :ok)]
+                                                       (swap! ack-calls conj r-id)
+                                                       :ok)]
         (#'redis/process-entry! ctx redis-id fields)
         (is (= 1 (count @handler-calls)))
         (is (= {:msg {:required-field 42}} (first @handler-calls)))

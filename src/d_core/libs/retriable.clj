@@ -20,9 +20,9 @@
          ok-sentinel# (Object.)]
      (loop [attempt# 1]
        (let [result# (try
-                      [ok-sentinel# (do ~@retriable-body)]
-                      (catch Exception e#
-                        e#))]
+                       [ok-sentinel# (do ~@retriable-body)]
+                       (catch Exception e#
+                         e#))]
          (if (and (vector? result#) (identical? ok-sentinel# (first result#)))
            (second result#)
            (let [e# result#

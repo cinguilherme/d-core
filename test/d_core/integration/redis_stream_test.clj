@@ -31,7 +31,7 @@
 (defn- del-key!
   [client key]
   (car/wcar (:conn client)
-    (car/del key)))
+            (car/del key)))
 
 (defn- cleanup!
   [client stream-keys meta-prefix]

@@ -25,21 +25,21 @@
             (update m :handler ig/ref)
             m)]
     (reduce-kv
-      (fn [acc k v]
-        (if (request-methods k)
-          (assoc acc k (normalize-handler v))
-          (assoc acc k v)))
-      m
-      m)))
+     (fn [acc k v]
+       (if (request-methods k)
+         (assoc acc k (normalize-handler v))
+         (assoc acc k v)))
+     m
+     m)))
 
 (defn- add-refs-to-routes
   [routes]
   (walk/postwalk
-    (fn [x]
-      (if (and (map? x) (endpoint-map? x))
-        (update-endpoint x)
-        x))
-    routes))
+   (fn [x]
+     (if (and (map? x) (endpoint-map? x))
+       (update-endpoint x)
+       x))
+   routes))
 
 (defmethod ig/expand-key :d-core.module/ws
   [_ {:keys [routes port middleware logger]

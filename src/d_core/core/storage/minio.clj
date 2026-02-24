@@ -43,8 +43,8 @@
                   (.withClientConfiguration client-config)
                   (.withPathStyleAccessEnabled true)
                   (.withEndpointConfiguration (AwsClientBuilder$EndpointConfiguration.
-                                              endpoint
-                                              "us-east-1")))]
+                                               endpoint
+                                               "us-east-1")))]
     (.build builder)))
 
 (defrecord MinioStorage [^AmazonS3 client bucket logger]
@@ -93,9 +93,9 @@
                              (= 404 status))
               log-level (if not-found? :info :error)]
           (logger/log logger log-level ::storage-get-failed {:key key
-                                                            :error (.getMessage e)
-                                                            :error-code error-code
-                                                            :status status})
+                                                             :error (.getMessage e)
+                                                             :error-code error-code
+                                                             :status status})
           {:ok false
            :key key
            :bucket bucket

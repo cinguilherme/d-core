@@ -58,8 +58,8 @@
                        (contains? sinks :storage)
                        (contains? sinks :producer))
                 (assoc sinks :hybrid (hybrid/make-hybrid {:storage-sink (:storage sinks)
-                                                         :producer-sink (:producer sinks)
-                                                         :logger logger}))
+                                                          :producer-sink (:producer sinks)
+                                                          :logger logger}))
                 sinks)
         default-sink (or default-sink (compute-default-sink sinks))]
     (->CommonDeadLetter default-sink sinks policy logger)))

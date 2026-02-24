@@ -37,10 +37,10 @@
 (deftest in-mem-stream-instrumentation-integration-test
   (let [{:keys [logger]} (h-logger/make-test-logger)
         {:keys [metrics calls]} (make-mock-metrics)
-        backend (ig/init-key :core-service.app.streams.in-memory/backend 
-                            {:logger logger :metrics metrics})
+        backend (ig/init-key :core-service.app.streams.in-memory/backend
+                             {:logger logger :metrics metrics})
         stream "test-stream"]
-    
+
     (testing "append-payload! through in-mem backend triggers metrics"
       (let [payload (.getBytes "hello world")]
         (p/append-payload! backend stream payload)
@@ -52,9 +52,9 @@
           (is (some? req-total) "Should have record for stream_requests_total")
           (is (some? duration) "Should have record for stream_request_duration_seconds")
           (is (some? bytes) "Should have record for stream_bytes")
-          
+
           (when req-total
             (is (= ["append" "ok"] (get-in req-total [:metric :labels]))))
-          
+
           (when bytes
             (is (= (double (alength payload)) (double (:value bytes))))))))))

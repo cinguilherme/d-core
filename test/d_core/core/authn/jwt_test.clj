@@ -144,9 +144,9 @@
                 :http-opts {}
                 :state state}]
       (with-redefs [jwt/fetch-jwks (fn [_ _]
-                                    (swap! counter inc)
-                                    (Thread/sleep 100)
-                                    jwks)]
+                                     (swap! counter inc)
+                                     (Thread/sleep 100)
+                                     jwks)]
         (let [futs (doall (repeatedly 8 #(future @start (#'jwt/get-jwks opts))))]
           (deliver start true)
           (doseq [f futs]
@@ -163,5 +163,5 @@
                 :http-opts {}
                 :state state}]
       (with-redefs [jwt/fetch-jwks (fn [_ _]
-                                    (throw (ex-info "should not fetch" {})))]
+                                     (throw (ex-info "should not fetch" {})))]
         (is (= jwks (#'jwt/get-jwks opts)))))))

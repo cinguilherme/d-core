@@ -4,9 +4,9 @@
            (com.amazonaws.client.builder AwsClientBuilder$EndpointConfiguration)
            (com.amazonaws.services.sqs AmazonSQS AmazonSQSClientBuilder)
            (com.amazonaws.services.sqs.model CreateQueueRequest DeleteMessageRequest DeleteQueueRequest
-                                              GetQueueUrlRequest Message MessageAttributeValue
-                                              PurgeQueueRequest QueueDoesNotExistException
-                                              ReceiveMessageRequest SendMessageRequest)
+                                             GetQueueUrlRequest Message MessageAttributeValue
+                                             PurgeQueueRequest QueueDoesNotExistException
+                                             ReceiveMessageRequest SendMessageRequest)
            (java.util Map)))
 
 (defrecord SQSClient [^AmazonSQS client config]
@@ -44,7 +44,7 @@
         builder (cond-> (AmazonSQSClientBuilder/standard)
                   provider (.withCredentials provider)
                   endpoint (.withEndpointConfiguration
-                             (AwsClientBuilder$EndpointConfiguration. endpoint region))
+                            (AwsClientBuilder$EndpointConfiguration. endpoint region))
                   (and (nil? endpoint) region) (.withRegion region))
         client (.build builder)]
     (->SQSClient client {:endpoint endpoint

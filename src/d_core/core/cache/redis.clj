@@ -7,27 +7,27 @@
 (defn redis-get
   [redis-client key]
   (car/wcar (:conn redis-client)
-    (car/get key)))
+            (car/get key)))
 
 (defn redis-set
   [redis-client key value]
   (car/wcar (:conn redis-client)
-    (car/set key value)))
+            (car/set key value)))
 
 (defn redis-setex
   [redis-client key ttl value]
   (car/wcar (:conn redis-client)
-    (car/setex key ttl value)))
+            (car/setex key ttl value)))
 
 (defn redis-del
   [redis-client key]
   (car/wcar (:conn redis-client)
-    (car/del key)))
+            (car/del key)))
 
 (defn redis-flushdb
   [redis-client]
   (car/wcar (:conn redis-client)
-    (car/flushdb)))
+            (car/flushdb)))
 
 (defrecord RedisCache [redis-client]
   p/CacheProtocol

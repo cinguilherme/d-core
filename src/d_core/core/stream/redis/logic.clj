@@ -1,5 +1,6 @@
 (ns d-core.core.stream.redis.logic
-  (:require [clojure.string :as str]))
+  (:require [clojure.string :as str]
+            [d-core.core.clients.redis.utils :as redis-utils]))
 
 (def default-limit 50)
 (def default-scan-count 100)
@@ -19,12 +20,7 @@
 
 (defn fields->map
   [fields]
-  (cond
-    (map? fields) fields
-    (sequential? fields) (if (even? (count fields))
-                           (apply hash-map fields)
-                           {})
-    :else {}))
+  (redis-utils/fields->map fields))
 
 (defn entry->payload
   [fields]
@@ -77,10 +73,10 @@
     (let [parts (str/split id #"-")]
       (when (= 2 (count parts))
         (let [[ts-str seq-str] parts]
-        (try
-          [(Long/parseLong ts-str)
-           (Long/parseLong seq-str)]
-          (catch NumberFormatException _
+          (try
+            [(Long/parseLong ts-str)
+             (Long/parseLong seq-str)]
+            (catch NumberFormatException _
               nil)))))))
 
 (defn next-stream-id

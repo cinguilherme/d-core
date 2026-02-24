@@ -33,29 +33,29 @@
         strictness (:strictness scfg)]
     (when view
       (schema/validate! view
-                       (or (:msg envelope) envelope)
-                       {:schema-id subscription-id
-                        :strictness strictness})))
+                        (or (:msg envelope) envelope)
+                        {:schema-id subscription-id
+                         :strictness strictness})))
   envelope)
 
 (defn- enrich-kafka-envelope
   [{:keys [topic subscription-id kafka-topic group-id client-key] :as ctx} r envelope raw status]
   (let [dl-cfg (routing/deadletter-config (:routing ctx) topic subscription-id)]
     (dlmeta/enrich-for-deadletter
-      (or envelope {:msg nil})
-      {:topic topic
-       :subscription-id subscription-id
-       :runtime :kafka
-       :source {:kafka-topic kafka-topic
-                :group-id group-id
-                :partition (:partition r)
-                :offset (:offset r)
-                :timestamp (:timestamp r)
-                :client client-key}
-       :producer client-key
-       :deadletter dl-cfg
-       :raw-payload raw
-       :status status})))
+     (or envelope {:msg nil})
+     {:topic topic
+      :subscription-id subscription-id
+      :runtime :kafka
+      :source {:kafka-topic kafka-topic
+               :group-id group-id
+               :partition (:partition r)
+               :offset (:offset r)
+               :timestamp (:timestamp r)
+               :client client-key}
+      :producer client-key
+      :deadletter dl-cfg
+      :raw-payload raw
+      :status status})))
 
 (defn- poison!
   [{:keys [dead-letter logger] :as ctx} consumer r failure-type envelope-or-nil ^Exception e raw]
@@ -174,7 +174,7 @@
         threads
         (into {}
               (map (fn [[subscription-id {:keys [topic handler options schema client producer]
-                                         :or {options {}}}]]
+                                          :or {options {}}}]]
                      (let [topic (or topic :default)
                            client-key (or client
                                           producer
@@ -187,18 +187,18 @@
                                           :known (when (map? kafka) (keys kafka))})))
                        [subscription-id
                         (start-kafka-subscription!
-                          {:subscription-id subscription-id
-                           :kafka kafka-client
-                           :routing routing
-                           :codec codec
-                           :handler handler
-                           :dead-letter dead-letter
-                           :stop? stop?
-                           :logger logger
-                           :topic topic
-                           :options options
-                           :client-key client-key
-                           :subscription-schema schema})])))
+                         {:subscription-id subscription-id
+                          :kafka kafka-client
+                          :routing routing
+                          :codec codec
+                          :handler handler
+                          :dead-letter dead-letter
+                          :stop? stop?
+                          :logger logger
+                          :topic topic
+                          :options options
+                          :client-key client-key
+                          :subscription-schema schema})])))
               kafka-subs)]
     {:stop? stop?
      :threads threads

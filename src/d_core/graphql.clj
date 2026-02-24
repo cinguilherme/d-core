@@ -249,38 +249,38 @@
         state (atom {:ack? false})]
     (s/on-closed conn #(stop-all-subscriptions! subscriptions))
     (s/consume
-      (fn [raw]
-        (let [{:keys [type id payload]} (decode-ws-message raw)]
-          (case type
-            "connection_init"
-            (do
-              (swap! state assoc :ack? true :connection-init payload)
-              (send-ws! conn {:type "connection_ack"}))
+     (fn [raw]
+       (let [{:keys [type id payload]} (decode-ws-message raw)]
+         (case type
+           "connection_init"
+           (do
+             (swap! state assoc :ack? true :connection-init payload)
+             (send-ws! conn {:type "connection_ack"}))
 
-            "ping"
-            (send-ws! conn {:type "pong" :payload payload})
+           "ping"
+           (send-ws! conn {:type "pong" :payload payload})
 
-            "pong"
-            nil
+           "pong"
+           nil
 
-            "subscribe"
-            (handle-ws-subscribe conn subscriptions state
-                                 {:schema schema
-                                  :execute execute
-                                  :context context
-                                  :context-fn context-fn
-                                  :logger logger}
-                                 id
-                                 payload)
+           "subscribe"
+           (handle-ws-subscribe conn subscriptions state
+                                {:schema schema
+                                 :execute execute
+                                 :context context
+                                 :context-fn context-fn
+                                 :logger logger}
+                                id
+                                payload)
 
-            "complete"
-            (stop-subscription! subscriptions id)
+           "complete"
+           (stop-subscription! subscriptions id)
 
-            (do
-              (when logger
-                (logger/log logger :warn ::unknown-ws-message {:type type}))
-              (send-ws-error! conn id (str "Unsupported message type: " type))))))
-      conn)
+           (do
+             (when logger
+               (logger/log logger :warn ::unknown-ws-message {:type type}))
+             (send-ws-error! conn id (str "Unsupported message type: " type))))))
+     conn)
     conn))
 
 (defn- websocket-protocol-allowed?

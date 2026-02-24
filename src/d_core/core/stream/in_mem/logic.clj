@@ -71,7 +71,7 @@
             (if (deref p timeout nil)
               (read-once state-atom stream (dissoc opts :timeout))
               {:entries [] :next-cursor nil})
-            (do (deref p) 
+            (do (deref p)
                 (read-once state-atom stream (dissoc opts :timeout))))
           res2))
       res)))

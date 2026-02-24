@@ -7,5 +7,5 @@
 (defn make-client
   [{:keys [uri] :or {uri "redis://localhost:6379"}}]
   (->RedisClient {:pool {}
-                 :spec {:uri uri}}))
+                  :spec {:uri uri}}))
 

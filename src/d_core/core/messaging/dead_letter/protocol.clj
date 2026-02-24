@@ -16,7 +16,7 @@
   (let [err (:error error-info)
         err' (cond
                (instance? Throwable err) {:message (.getMessage ^Throwable err)
-                                         :class (-> err class .getName)}
+                                          :class (-> err class .getName)}
                :else err)
         st (:stacktrace error-info)
         st' (cond

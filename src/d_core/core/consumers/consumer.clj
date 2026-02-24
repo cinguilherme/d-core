@@ -20,24 +20,24 @@
                 strictness (:strictness scfg)]
             (when view
               (schema/validate! view
-                               (or (:msg item) item)
-                               {:schema-id subscription-id
-                                :strictness strictness})))
+                                (or (:msg item) item)
+                                {:schema-id subscription-id
+                                 :strictness strictness})))
           (handler item)
           (catch Exception e
             (logger/log logger :error ::handler-failed {:id subscription-id :error (.getMessage e)})
             (when dead-letter
               (let [dl-cfg (when routing (routing/deadletter-config routing topic subscription-id))
                     envelope (dlmeta/enrich-for-deadletter
-                               item
-                               {:topic topic
-                                :subscription-id subscription-id
-                                :runtime :in-memory
-                                :source {:topic topic
-                                         :subscription-id subscription-id}
-                                :producer producer-key
-                                :deadletter dl-cfg
-                                :status (when (= :schema-invalid (:failure/type (ex-data e))) :poison)})]
+                              item
+                              {:topic topic
+                               :subscription-id subscription-id
+                               :runtime :in-memory
+                               :source {:topic topic
+                                        :subscription-id subscription-id}
+                               :producer producer-key
+                               :deadletter dl-cfg
+                               :status (when (= :schema-invalid (:failure/type (ex-data e))) :poison)})]
                 (dl/send-dead-letter! dead-letter envelope
                                       {:error e
                                        :stacktrace (with-out-str (.printStackTrace e))}
@@ -59,7 +59,7 @@
         threads
         (into {}
               (map (fn [[subscription-id {:keys [topic handler options schema producer client]
-                                         :or {options {}}}]]
+                                          :or {options {}}}]]
                      (let [topic (or topic :default)
                            queue (q/get-queue! queues topic)
                            poll-ms (or (:poll-ms options) default-poll-ms)

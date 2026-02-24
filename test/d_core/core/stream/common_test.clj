@@ -73,13 +73,13 @@
 (deftest delegation-without-metrics
   (let [{:keys [logger]} (h-logger/make-test-logger)
         delegate (make-mock-delegate
-                   {:append "id-1"
-                    :read   {:entries [] :next-cursor nil}})
+                  {:append "id-1"
+                   :read   {:entries [] :next-cursor nil}})
         stream   (build-common-stream {:delegate delegate :logger logger})]
-    
+
     (testing "append-payload! returns result from delegate"
       (is (= "id-1" (protocol/append-payload! stream "s1" (.getBytes "data")))))
-    
+
     (testing "read-payloads returns result from delegate"
       (is (= {:entries [] :next-cursor nil}
              (protocol/read-payloads stream "s1" {:direction :forward}))))))
@@ -89,15 +89,15 @@
         {:keys [metrics calls]} (make-mock-metrics)
         payload (.getBytes "hello")
         delegate (make-mock-delegate
-                   {:append "id-1"
-                    :read   {:entries [{:id "1" :payload payload}] :next-cursor "2"}})
-        stream   (build-common-stream {:delegate delegate 
-                                       :mock-metrics metrics 
+                  {:append "id-1"
+                   :read   {:entries [{:id "1" :payload payload}] :next-cursor "2"}})
+        stream   (build-common-stream {:delegate delegate
+                                       :mock-metrics metrics
                                        :logger logger})]
-    
+
     (testing "append-payload! records metrics"
       (is (= "id-1" (protocol/append-payload! stream "s1" payload)))
-      
+
       (let [incs (find-calls calls :inc! :stream_requests_total)
             obs  (find-calls calls :observe! :stream_request_duration_seconds)
             bytes (find-calls calls :observe! :stream_bytes)]
@@ -111,9 +111,9 @@
 
     (testing "read-payloads records metrics with byte count"
       (reset! calls [])
-      (is (= {:entries [{:id "1" :payload payload}] :next-cursor "2"} 
+      (is (= {:entries [{:id "1" :payload payload}] :next-cursor "2"}
              (protocol/read-payloads stream "s1" {:direction :forward})))
-      
+
       (let [incs (find-calls calls :inc! :stream_requests_total)
             bytes (find-calls calls :observe! :stream_bytes)]
         (is (= 1 (count incs)))
@@ -126,15 +126,15 @@
   (let [{:keys [logger]} (h-logger/make-test-logger)
         {:keys [metrics calls]} (make-mock-metrics)
         delegate (make-mock-delegate
-                   {:append (RuntimeException. "fail")})
-        stream   (build-common-stream {:delegate delegate 
-                                       :mock-metrics metrics 
+                  {:append (RuntimeException. "fail")})
+        stream   (build-common-stream {:delegate delegate
+                                       :mock-metrics metrics
                                        :logger logger})]
-    
+
     (testing "append-payload! records error metrics"
-      (is (thrown-with-msg? RuntimeException #"fail" 
+      (is (thrown-with-msg? RuntimeException #"fail"
                             (protocol/append-payload! stream "s1" (.getBytes "data"))))
-      
+
       (let [incs (find-calls calls :inc! :stream_requests_total)]
         (is (= 1 (count incs)))
         (is (= ["append" "error"] (get-in (first incs) [:metric :labels])))))))

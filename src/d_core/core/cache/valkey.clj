@@ -7,27 +7,27 @@
 (defn valkey-get
   [valkey-client key]
   (car/wcar (:conn valkey-client)
-    (car/get key)))
+            (car/get key)))
 
 (defn valkey-set
   [valkey-client key value]
   (car/wcar (:conn valkey-client)
-    (car/set key value)))
+            (car/set key value)))
 
 (defn valkey-setex
   [valkey-client key ttl value]
   (car/wcar (:conn valkey-client)
-    (car/setex key ttl value)))
+            (car/setex key ttl value)))
 
 (defn valkey-del
   [valkey-client key]
   (car/wcar (:conn valkey-client)
-    (car/del key)))
+            (car/del key)))
 
 (defn valkey-flushdb
   [valkey-client]
   (car/wcar (:conn valkey-client)
-    (car/flushdb)))
+            (car/flushdb)))
 
 (defrecord ValkeyCache [valkey-client]
   p/CacheProtocol

@@ -49,11 +49,11 @@
           commit-calls (atom [])
           test-logger (h-logger/make-test-logger)
           ctx (make-test-ctx
-                :codec (h-codec/make-test-codec (fn [_] {:msg {:data "test"}}))
-                :handler (fn [envelope]
-                           (swap! handler-calls conj envelope)
-                           :ok)
-                :logger (:logger test-logger))
+               :codec (h-codec/make-test-codec (fn [_] {:msg {:data "test"}}))
+               :handler (fn [envelope]
+                          (swap! handler-calls conj envelope)
+                          :ok)
+               :logger (:logger test-logger))
           consumer :fake-consumer
           record (make-test-record (.getBytes "test-payload" "UTF-8"))]
       (with-redefs [kc/commit! (fn [c]

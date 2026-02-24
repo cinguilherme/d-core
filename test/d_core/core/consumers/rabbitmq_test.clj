@@ -47,9 +47,9 @@
           envelope (make-envelope 1 false "core" "core.test")
           payload (.getBytes "test-payload" "UTF-8")]
       (with-redefs [d-core.core.consumers.rabbitmq/ack! (fn [channel delivery-tag]
-                                                         (swap! ack-calls conj {:channel channel
-                                                                                :delivery-tag delivery-tag})
-                                                         :ok)]
+                                                          (swap! ack-calls conj {:channel channel
+                                                                                 :delivery-tag delivery-tag})
+                                                          :ok)]
         (#'rabbitmq/process-delivery! ctx envelope payload)
         (is (= 1 (count @handler-calls)))
         (is (= {:msg {:data "test"}} (first @handler-calls)))
@@ -79,8 +79,8 @@
           envelope (make-envelope 2 false "core" "core.test")
           payload (.getBytes "bad-payload" "UTF-8")]
       (with-redefs [d-core.core.consumers.rabbitmq/ack! (fn [_channel delivery-tag]
-                                                         (swap! ack-calls conj delivery-tag)
-                                                         :ok)]
+                                                          (swap! ack-calls conj delivery-tag)
+                                                          :ok)]
         (#'rabbitmq/process-delivery! ctx envelope payload)
         (is (= 0 (count @handler-calls)))
         (is (= 1 (count @dl-calls)))
@@ -115,8 +115,8 @@
           envelope (make-envelope 3 false "core" "core.test")
           payload (.getBytes "test-payload" "UTF-8")]
       (with-redefs [d-core.core.consumers.rabbitmq/ack! (fn [_channel delivery-tag]
-                                                         (swap! ack-calls conj delivery-tag)
-                                                         :ok)]
+                                                          (swap! ack-calls conj delivery-tag)
+                                                          :ok)]
         (#'rabbitmq/process-delivery! ctx envelope payload)
         (is (= 0 (count @handler-calls)))
         (is (= 1 (count @dl-calls)))
@@ -147,8 +147,8 @@
           envelope (make-envelope 4 false "core" "core.test")
           payload (.getBytes "test-payload" "UTF-8")]
       (with-redefs [d-core.core.consumers.rabbitmq/ack! (fn [_channel delivery-tag]
-                                                         (swap! ack-calls conj delivery-tag)
-                                                         :ok)]
+                                                          (swap! ack-calls conj delivery-tag)
+                                                          :ok)]
         (#'rabbitmq/process-delivery! ctx envelope payload)
         (is (= 1 (count @dl-calls)))
         (let [dl-call (first @dl-calls)]
@@ -179,8 +179,8 @@
           envelope (make-envelope 5 false "core" "core.test")
           payload (.getBytes "test-payload" "UTF-8")]
       (with-redefs [d-core.core.consumers.rabbitmq/ack! (fn [_channel delivery-tag]
-                                                         (swap! ack-calls conj delivery-tag)
-                                                         :ok)]
+                                                          (swap! ack-calls conj delivery-tag)
+                                                          :ok)]
         (#'rabbitmq/process-delivery! ctx envelope payload)
         (is (= 1 (count @dl-calls)))
         (is (= 0 (count @ack-calls)))
@@ -200,8 +200,8 @@
           envelope (make-envelope 6 false "core" "core.test")
           payload (.getBytes "test-payload" "UTF-8")]
       (with-redefs [d-core.core.consumers.rabbitmq/ack! (fn [_channel delivery-tag]
-                                                         (swap! ack-calls conj delivery-tag)
-                                                         :ok)]
+                                                          (swap! ack-calls conj delivery-tag)
+                                                          :ok)]
         (#'rabbitmq/process-delivery! ctx envelope payload)
         (is (= 0 (count @ack-calls)))
         (is (some #(= :d-core.core.consumers.rabbitmq/no-dlq-configured (:event %)) @logs))))))
@@ -220,8 +220,8 @@
           envelope (make-envelope 7 true "core" "core.test")
           payload (.getBytes "bad-payload" "UTF-8")]
       (with-redefs [d-core.core.consumers.rabbitmq/ack! (fn [_channel delivery-tag]
-                                                         (swap! ack-calls conj delivery-tag)
-                                                         :ok)]
+                                                          (swap! ack-calls conj delivery-tag)
+                                                          :ok)]
         (#'rabbitmq/process-delivery! ctx envelope payload)
         (is (= 1 (count @ack-calls)))
         (is (some #(= :d-core.core.consumers.rabbitmq/rabbitmq-poison-message (:event %)) @logs))

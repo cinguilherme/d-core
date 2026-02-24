@@ -25,7 +25,7 @@
             {:key           rel-key
              :size          (.length f)
              :last-modified (java.util.Date.
-                              (.lastModified f))}))
+                             (.lastModified f))}))
         selected))
 
 (defn- probe-content-type

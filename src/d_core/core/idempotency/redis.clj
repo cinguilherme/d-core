@@ -102,5 +102,9 @@
 
 (defmethod ig/init-key :d-core.core.idempotency.redis/redis
   [_ {:keys [redis-client prefix default-ttl-ms]
+      ;; Default TTL is 6 hours (21600000 ms). This is long enough to cover typical
+      ;; request retry windows in our system while limiting Redis memory usage.
+      ;; Override `default-ttl-ms` in configuration if your use case requires a
+      ;; shorter or longer idempotency window.
       :or {prefix "dcore:idempotency:" default-ttl-ms 21600000}}]
   (->RedisIdempotency redis-client prefix default-ttl-ms))

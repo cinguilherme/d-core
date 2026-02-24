@@ -64,6 +64,17 @@
         (is (= [{:op :max :key "k" :field "user-1" :value "42" :ttl-ms 1000}]
                @calls))))))
 
+(deftest set-max-field-no-update-still-passes-ttl
+  (testing "set-max-field returns false when not updated and still includes ttl in eval call"
+    (let [store (redis/->RedisStateStore :redis)
+          calls (atom [])]
+      (with-redefs [d-core.core.state-store.redis/eval-set-max! (fn [_ key field value ttl-ms]
+                                                                  (swap! calls conj {:op :max :key key :field field :value value :ttl-ms ttl-ms})
+                                                                  0)]
+        (is (false? (p/set-max-field! store "k" "user-1" 42 {:ttl-ms 2000})))
+        (is (= [{:op :max :key "k" :field "user-1" :value "42" :ttl-ms 2000}]
+               @calls))))))
+
 (deftest parse-numeric-value-test
   (testing "accepts numeric values and numeric strings"
     (is (= "42" (redis/parse-numeric-value 42)))

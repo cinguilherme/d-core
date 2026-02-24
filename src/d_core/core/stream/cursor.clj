@@ -50,6 +50,7 @@
      :cursor nil
      :seq-cursor nil
      :conversation-id nil
+     :provided? false
      :invalid? false}
     (let [decoded (token/decode-token-map cursor-token)]
       (if (valid-token-shape? decoded)
@@ -63,6 +64,7 @@
            :cursor cursor
            :seq-cursor seq-cursor
            :conversation-id (:conversation_id decoded)
+           :provided? true
            :invalid? false})
         {:token nil
          :source nil
@@ -70,4 +72,5 @@
          :cursor nil
          :seq-cursor nil
          :conversation-id nil
+         :provided? true
          :invalid? true}))))

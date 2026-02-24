@@ -10,6 +10,7 @@
                                          :direction :backward
                                          :source :redis})
           decoded (cursor/decode-cursor encoded)]
+      (is (true? (:provided? decoded)))
       (is (= :redis (:source decoded)))
       (is (= :backward (:direction decoded)))
       (is (= "10-0" (:cursor decoded)))
@@ -22,19 +23,30 @@
                                          :direction :backward
                                          :source :minio})
           decoded (cursor/decode-cursor encoded)]
+      (is (true? (:provided? decoded)))
       (is (= :minio (:source decoded)))
       (is (= 42 (:cursor decoded)))
       (is (= 42 (:seq-cursor decoded))))))
 
+(deftest decode-missing-cursor-token
+  (testing "nil or blank tokens are treated as not provided"
+    (doseq [value [nil "" "   "]]
+      (let [decoded (cursor/decode-cursor value)]
+        (is (false? (:provided? decoded)))
+        (is (false? (:invalid? decoded)))
+        (is (nil? (:token decoded)))))))
+
 (deftest decode-invalid-cursor-token
   (testing "invalid base64/json token is marked invalid"
     (let [decoded (cursor/decode-cursor "%%%invalid%%")]
+      (is (true? (:provided? decoded)))
       (is (true? (:invalid? decoded)))
       (is (nil? (:token decoded)))))
 
   (testing "non-map token payload is marked invalid"
     (let [vector-token (token/encode-token [1 2 3])
           decoded (cursor/decode-cursor vector-token)]
+      (is (true? (:provided? decoded)))
       (is (true? (:invalid? decoded)))))
 
   (testing "unknown source or invalid cursor type is marked invalid"

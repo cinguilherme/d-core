@@ -14,3 +14,11 @@
     (is (nil? (token/decode-token nil)))
     (is (nil? (token/decode-token "")))
     (is (nil? (token/decode-token "%%%invalid%%%")))))
+
+(deftest decode-token-map-boundary
+  (testing "decode-token-map returns map payloads and rejects non-map payloads"
+    (let [map-token (token/encode-token {:a 1})
+          vec-token (token/encode-token [1 2 3])]
+      (is (= {:a 1} (token/decode-token-map map-token)))
+      (is (nil? (token/decode-token-map vec-token)))
+      (is (nil? (token/decode-token-map "%%%invalid%%%"))))))

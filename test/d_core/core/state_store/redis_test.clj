@@ -64,6 +64,32 @@
         (is (= [{:op :max :key "k" :field "user-1" :value "42" :ttl-ms 1000}]
                @calls))))))
 
+(deftest parse-numeric-value-test
+  (testing "accepts numeric values and numeric strings"
+    (is (= "42" (redis/parse-numeric-value 42)))
+    (is (= "42.5" (redis/parse-numeric-value 42.5)))
+    (is (= "-9" (redis/parse-numeric-value "-9")))
+    (is (= "10.25" (redis/parse-numeric-value "10.25"))))
+
+  (testing "rejects non-numeric values"
+    (is (nil? (redis/parse-numeric-value nil)))
+    (is (nil? (redis/parse-numeric-value "abc")))
+    (is (nil? (redis/parse-numeric-value "1a")))
+    (is (nil? (redis/parse-numeric-value :x)))))
+
+(deftest set-max-field-invalid-input
+  (testing "set-max-field throws for non-numeric input before eval"
+    (let [store (redis/->RedisStateStore :redis)
+          called? (atom false)]
+      (with-redefs [d-core.core.state-store.redis/eval-set-max! (fn [& _]
+                                                                  (reset! called? true)
+                                                                  1)]
+        (is (thrown-with-msg?
+             clojure.lang.ExceptionInfo
+             #"state-store set-max requires numeric value"
+             (p/set-max-field! store "k" "f" "abc" {:ttl-ms 1000})))
+        (is (false? @called?))))))
+
 (deftest sorted-set-operations-test
   (testing "zadd and zcount delegate"
     (let [store (redis/->RedisStateStore :redis)]

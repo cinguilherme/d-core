@@ -6,14 +6,31 @@
 
 (def ^:private set-max-field-lua
   (str "local current = redis.call('HGET', KEYS[1], ARGV[1]);"
-       "if (not current) or (tonumber(ARGV[2]) > tonumber(current)) then "
+       "local next_val = tonumber(ARGV[2]);"
+       "if not next_val then return redis.error_reply('ERR state-store set-max requires numeric value'); end;"
+       "local ttl_ms = tonumber(ARGV[3]) or 0;"
+       "local current_num = nil;"
+       "if current then "
+       "current_num = tonumber(current);"
+       "if not current_num then return redis.error_reply('ERR state-store set-max found non-numeric current value'); end;"
+       "end;"
+       "if (not current_num) or (next_val > current_num) then "
        "redis.call('HSET', KEYS[1], ARGV[1], ARGV[2]);"
-       "if tonumber(ARGV[3]) > 0 then redis.call('PEXPIRE', KEYS[1], ARGV[3]); end;"
+       "if ttl_ms > 0 then redis.call('PEXPIRE', KEYS[1], ARGV[3]); end;"
        "return 1;"
        "end;"
-       "if tonumber(ARGV[3]) > 0 then redis.call('PEXPIRE', KEYS[1], ARGV[3]); end;"
-       "end;"
+       "if ttl_ms > 0 then redis.call('PEXPIRE', KEYS[1], ARGV[3]); end;"
        "return 0;"))
+
+(def ^:private numeric-value-pattern #"^-?\d+(\.\d+)?$")
+
+(defn parse-numeric-value
+  [value]
+  (cond
+    (number? value) (str value)
+    (and (string? value)
+         (re-matches numeric-value-pattern value)) value
+    :else nil))
 
 (defn hset!
   [redis-client key field value]
@@ -89,8 +106,13 @@
     (hdel! redis-client key fields))
 
   (set-max-field! [_ key field value {:keys [ttl-ms]}]
-    (let [updated? (= 1 (eval-set-max! redis-client key field (str value) ttl-ms))]
-      updated?))
+    (if-let [numeric-value (parse-numeric-value value)]
+      (= 1 (eval-set-max! redis-client key field numeric-value ttl-ms))
+      (throw (ex-info "state-store set-max requires numeric value"
+                      {:key key
+                       :field field
+                       :value value
+                       :value-type (some-> value class .getName)}))))
 
   (expire! [_ key ttl-ms _opts]
     (pexpire! redis-client key (long ttl-ms)))

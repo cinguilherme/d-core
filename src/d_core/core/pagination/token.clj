@@ -18,3 +18,9 @@
         (json/parse-string payload true))
       (catch Exception _
         nil))))
+
+(defn decode-token-map
+  [token]
+  (let [decoded (decode-token token)]
+    (when (map? decoded)
+      decoded)))

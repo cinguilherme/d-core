@@ -19,24 +19,41 @@
       (tracing/with-ctx ctx
         (handler-fn envelope)))))
 
+(defn- unknown-handler-ex
+  [subscription-id handler known-handlers]
+  (ex-info "Subscription handler must be a function or a known handler key"
+           {:subscription subscription-id
+            :handler handler
+            :known-handlers known-handlers}))
+
+(defn- dynamic-handler
+  [subscription-id handler-id handler-resolver known-handlers]
+  (fn [envelope]
+    (let [resolved (when handler-resolver
+                     (handler-resolver handler-id))]
+      (if (fn? resolved)
+        (resolved envelope)
+        (throw (unknown-handler-ex subscription-id handler-id known-handlers))))))
+
 (defn- resolve-subscriptions
-  [subs handlers]
-  (let [handlers (or handlers {})]
+  [subs handlers handler-resolver]
+  (let [handlers (or handlers {})
+        known-handlers (vec (keys handlers))]
     (into {}
-          (map (fn [[id sub]]
+          (map (fn [[subscription-id sub]]
                  (let [h (:handler sub)]
                    (cond
                      (fn? h)
-                     [id (update sub :handler wrap-handler)]
+                     [subscription-id (update sub :handler wrap-handler)]
 
                      (and (keyword? h) (contains? handlers h))
-                     [id (assoc sub :handler (wrap-handler (get handlers h)))]
+                     [subscription-id (assoc sub :handler (wrap-handler (get handlers h)))]
+
+                     (keyword? h)
+                     [subscription-id (assoc sub :handler (wrap-handler (dynamic-handler subscription-id h handler-resolver known-handlers)))]
 
                      :else
-                     (throw (ex-info "Subscription handler must be a function or a known handler key"
-                                     {:subscription id
-                                      :handler h
-                                      :known-handlers (keys handlers)}))))))
+                     (throw (unknown-handler-ex subscription-id h known-handlers))))))
           (or subs {}))))
 
 (defmethod ig/init-key :d-core.core.messaging/routing
@@ -44,18 +61,22 @@
   (let [routing (or routing {})]
     (cond
       (and (map? routing) (contains? routing :default-routing))
-      (let [{:keys [default-routing overrides]} routing
+      (let [{:keys [default-routing overrides handler-resolver]} routing
             default-routing (or default-routing {})
             overrides (or overrides {})
             handlers (merge (:handlers default-routing) (:handlers overrides))
-            merged (-> (deep-merge default-routing (dissoc overrides :handlers))
-                       (assoc :handlers handlers))]
+            handler-resolver (or (:handler-resolver overrides)
+                                 handler-resolver
+                                 (:handler-resolver default-routing))
+            merged (-> (deep-merge default-routing (dissoc overrides :handlers :handler-resolver))
+                       (assoc :handlers handlers)
+                       (cond-> handler-resolver (assoc :handler-resolver handler-resolver)))]
         (if (contains? merged :subscriptions)
-          (update merged :subscriptions #(resolve-subscriptions % handlers))
+          (update merged :subscriptions #(resolve-subscriptions % handlers handler-resolver))
           merged))
 
       (and (map? routing) (contains? routing :subscriptions))
-      (update routing :subscriptions #(resolve-subscriptions % (:handlers routing)))
+      (update routing :subscriptions #(resolve-subscriptions % (:handlers routing) (:handler-resolver routing)))
 
       :else
       routing)))

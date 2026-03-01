@@ -118,3 +118,29 @@
                             :subscriptions {:sub {:handler :log-consumed}}})]
       ((get-in cfg [:subscriptions :sub :handler]) {:msg {:ok true}})
       (is (= [:ok] @calls)))))
+
+(deftest init-key-supports-runtime-handler-resolver
+  (testing "keyword handlers are resolved lazily via handler-resolver"
+    (let [calls (atom [])
+          dynamic-handler (atom nil)
+          cfg (ig/init-key :d-core.core.messaging/routing
+                           {:handler-resolver (fn [handler-id]
+                                                (when (= :log-consumed handler-id)
+                                                  @dynamic-handler))
+                            :subscriptions {:sub {:handler :log-consumed}}})
+          wrapped (get-in cfg [:subscriptions :sub :handler])]
+      (is (fn? wrapped))
+      (reset! dynamic-handler (fn [_] (swap! calls conj :ok)))
+      (wrapped {:msg {:ok true}})
+      (is (= [:ok] @calls)))))
+
+(deftest init-key-throws-when-runtime-handler-resolver-cannot-resolve
+  (testing "unresolved keyword handlers still fail with a clear error"
+    (let [cfg (ig/init-key :d-core.core.messaging/routing
+                           {:handler-resolver (constantly nil)
+                            :subscriptions {:sub {:handler :missing-handler}}})
+          wrapped (get-in cfg [:subscriptions :sub :handler])]
+      (is (thrown-with-msg?
+           clojure.lang.ExceptionInfo
+           #"Subscription handler must be a function or a known handler key"
+           (wrapped {:msg {:ok true}}))))))

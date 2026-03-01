@@ -51,9 +51,19 @@ This page tracks what D-Core currently supports, what is planned, and what is ex
 ### Authentication and Authorization
 
 - JWT/OIDC authenticator (`:d-core.core.authn.jwt/authenticator`)
+- API key authenticator (`:d-core.core.authn.api-key/authenticator`)
+- Authenticator chain (`:d-core.core.authn.chain/authenticator`)
 - Scope-based authorizer (`:d-core.core.authz.scope/authorizer`)
 - Ring middleware (`:d-core.core.auth.http/*`)
+- API key limitations middleware (`:d-core.core.auth.api-key/limitations-middleware`)
 - Token client helpers (`:d-core.core.auth/token-client`)
+
+### API Keys
+
+- API key protocol (`d-core.core.api-keys.protocol/ApiKeyStore`)
+- Postgres backend (`:d-core.core.api-keys.postgres/store`)
+- Per-key fixed-window rate limiting (`consume-rate-limit!`)
+- Per-key method/path/IP limitation checks (middleware-driven)
 
 ### GraphQL
 

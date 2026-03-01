@@ -44,6 +44,9 @@ Use this to translate drawings into concrete D-Core wiring:
 - Geo -> `:d-core.core.geo.tile38/index`.
 - Rate limiting -> `:d-core.core.rate-limit.sliding-window/limiter` or
   `:d-core.core.rate-limit.leaky-bucket/limiter`.
+- API key auth -> `:d-core.core.api-keys.postgres/store`,
+  `:d-core.core.authn.api-key/authenticator`,
+  `:d-core.core.auth.api-key/limitations-middleware`.
 - Cron jobs -> `:d-core.libs.cron-task/scheduler` (see `docs/cron_task.md`).
 - Metrics -> `:d-core.core.metrics.prometheus/*`.
 - Dev/test queues -> `:d-core.queue/in-memory-queue` or
@@ -119,6 +122,7 @@ protocols:
 - Storage: `d-core.core.storage.protocol/StorageProtocol`
   - Storage operations: `storage-get`, `storage-put`, `storage-delete`, `storage-get-bytes`, `storage-put-bytes`, `storage-head`, `storage-list`
 - Rate limit: `d-core.core.rate-limit.protocol/RateLimitProtocol`
+- API keys: `d-core.core.api-keys.protocol/ApiKeyStore`
 - Metrics: `d-core.core.metrics.protocol/MetricsProtocol`
 - Text search: `d-core.core.text-search.protocol/*`
 - SQL: `d-core.core.databases.protocols.simple-sql/*`
@@ -144,3 +148,4 @@ protocols:
 - `docs/graphql.md`
 - `docs/time.md`
 - `docs/supported.md`
+- `docs/api_keys.md`

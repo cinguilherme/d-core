@@ -28,6 +28,7 @@ For `StorageProtocol`, the core operations are:
   - graphql server (Lacinia + optional GraphiQL + subscriptions)
   - metrics (Prometheus registry + scrape server)
   - rate limiting (sliding window, leaky bucket)
+  - API keys (protocol + Postgres backend + auth/middleware integration)
   - cron tasks (Quartz-backed scheduler)
   - tracing helpers + Ring middleware
   - simple in-memory queues for local/dev and testing
@@ -293,6 +294,10 @@ datomic:free://localhost:4334/d-core
 ### Supported vs unsupported matrix
 
 See `docs/supported.md`.
+
+### API keys
+
+See `docs/api_keys.md`.
 
 ### Dead letters
 

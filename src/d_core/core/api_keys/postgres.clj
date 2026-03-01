@@ -10,6 +10,7 @@
            (java.sql Timestamp)
            (java.time Instant)
            (java.util Base64 UUID)
+           (java.util.concurrent Executors ScheduledExecutorService ThreadFactory TimeUnit)
            (org.postgresql.util PGobject)))
 
 (def ^:private key-prefix
@@ -41,18 +42,7 @@
    "CREATE INDEX IF NOT EXISTS idx_dcore_api_keys_tenant_status
       ON dcore_api_keys (tenant_id, status)"
    "CREATE INDEX IF NOT EXISTS idx_dcore_api_keys_expires_at
-      ON dcore_api_keys (expires_at)"
-   "CREATE TABLE IF NOT EXISTS dcore_api_key_rate_windows (
-      api_key_id UUID NOT NULL REFERENCES dcore_api_keys(api_key_id) ON DELETE CASCADE,
-      window_start TIMESTAMPTZ NOT NULL,
-      request_count BIGINT NOT NULL DEFAULT 0,
-      PRIMARY KEY (api_key_id, window_start)
-    )"
-   "CREATE INDEX IF NOT EXISTS idx_dcore_api_key_rate_windows_window_start
-      ON dcore_api_key_rate_windows (window_start)"])
-
-(defn- now-ms []
-  (System/currentTimeMillis))
+      ON dcore_api_keys (expires_at)"])
 
 (defn- now-instant []
   (Instant/now))
@@ -212,16 +202,6 @@
              (.isAfter (.toInstant ^Timestamp expires-at) now))
          (constant-time-equals? (or (row-get row :key_hash) "") provided-hash))))
 
-(defn- require-positive-long
-  [value field-name]
-  (let [v (long value)]
-    (when (<= v 0)
-      (throw (ex-info "Field must be greater than zero"
-                      {:type ::invalid-rate-limit
-                       :field field-name
-                       :value value})))
-    v))
-
 (defn- query-one
   [datasource sqlvec]
   (first (jdbc/execute! datasource sqlvec {:builder-fn rs/as-unqualified-lower-maps})))
@@ -230,7 +210,108 @@
   [datasource sqlvec]
   (jdbc/execute! datasource sqlvec {:builder-fn rs/as-unqualified-lower-maps}))
 
-(defrecord PostgresApiKeyStore [datasource pepper logger]
+(defn- update-last-used-batch!
+  [datasource api-key-ids]
+  (when (seq api-key-ids)
+    (let [placeholders (str/join ", " (repeat (count api-key-ids) "?::uuid"))
+          sql (str "UPDATE dcore_api_keys
+                    SET last_used_at = NOW(), updated_at = NOW()
+                    WHERE api_key_id IN (" placeholders ")")]
+      (jdbc/execute! datasource (into [sql] (map str api-key-ids))))))
+
+(defn- take-pending-batch!
+  [pending max-batch-size]
+  (let [batch* (volatile! nil)]
+    (swap! pending
+           (fn [s]
+             (let [batch (->> s (take max-batch-size) vec)]
+               (vreset! batch* batch)
+               (reduce disj s batch))))
+    @batch*))
+
+(declare flush-last-used!)
+
+(defn- daemon-thread-factory
+  [thread-name]
+  (reify ThreadFactory
+    (newThread [_ runnable]
+      (doto (Thread. runnable (str thread-name "-" (UUID/randomUUID)))
+        (.setDaemon true)))))
+
+(defn- new-last-used-tracker
+  [{:keys [datasource logger mode flush-interval-ms max-batch-size]
+    :or {mode :async
+         flush-interval-ms 2000
+         max-batch-size 200}}]
+  (if (= mode :sync)
+    {:mode :sync
+     :datasource datasource
+     :logger logger}
+    (let [pending (atom #{})
+          flushing? (atom false)
+          scheduler (Executors/newSingleThreadScheduledExecutor
+                     (daemon-thread-factory "d-core-api-key-last-used-flush"))
+          tracker {:mode :async
+                   :datasource datasource
+                   :logger logger
+                   :pending pending
+                   :flushing? flushing?
+                   :flush-interval-ms (long flush-interval-ms)
+                   :max-batch-size (long max-batch-size)
+                   :scheduler scheduler}]
+      (.scheduleAtFixedRate ^ScheduledExecutorService scheduler
+                            ^Runnable #(flush-last-used! tracker)
+                            (long flush-interval-ms)
+                            (long flush-interval-ms)
+                            TimeUnit/MILLISECONDS)
+      tracker)))
+
+(defn- flush-last-used!
+  [{:keys [mode datasource logger pending flushing? max-batch-size]}]
+  (when (= mode :async)
+    (when (compare-and-set! flushing? false true)
+      (try
+        (loop []
+          (let [batch (take-pending-batch! pending max-batch-size)]
+            (when (seq batch)
+              (let [flushed? (try
+                               (update-last-used-batch! datasource batch)
+                               true
+                               (catch Exception ex
+                                 ;; Re-queue batch to avoid dropping updates.
+                                 (swap! pending into batch)
+                                 (when logger
+                                   (logger/log logger :error ::last-used-flush-failed
+                                               {:batch-size (count batch)
+                                                :error (.getMessage ex)}))
+                                 false))]
+                (when flushed?
+                  (recur))))))
+        (finally
+          (reset! flushing? false))))))
+
+(defn- record-last-used!
+  [tracker api-key-id]
+  (when (and tracker api-key-id)
+    (case (:mode tracker)
+      :sync (update-last-used-batch! (:datasource tracker) [api-key-id])
+      :async (do
+               (swap! (:pending tracker) conj (str api-key-id))
+               (when (>= (count @(:pending tracker)) (:max-batch-size tracker))
+                 (future (flush-last-used! tracker))))
+      nil)))
+
+(defn- stop-last-used-tracker!
+  [tracker]
+  (when tracker
+    (when (= :async (:mode tracker))
+      (flush-last-used! tracker)
+      (when-let [^ScheduledExecutorService scheduler (:scheduler tracker)]
+        (.shutdown scheduler)
+        (.awaitTermination scheduler 2000 TimeUnit/MILLISECONDS)
+        (flush-last-used! tracker)))))
+
+(defrecord PostgresApiKeyStore [datasource pepper logger last-used-tracker]
   p/ApiKeyStore
   (ensure-schema! [_ _opts]
     (doseq [ddl ddl-statements]
@@ -356,57 +437,27 @@
                             prefix])
             provided-hash (secret->hash pepper secret)]
         (when (and row (auth-valid? row provided-hash))
-          (jdbc/execute! datasource
-                         ["UPDATE dcore_api_keys
-                           SET last_used_at = NOW(), updated_at = NOW()
-                           WHERE api_key_id = ?::uuid"
-                          (str (row-get row :api_key_id))])
+          (record-last-used! last-used-tracker (row-get row :api_key_id))
           (sanitize-row row)))))
-
-  (consume-rate-limit! [_ api-key-id opts]
-    (let [limit (require-positive-long (or (:limit opts)
-                                           (get-in opts [:rate-limit :limit]))
-                                       :limit)
-          window-ms (require-positive-long (or (:window-ms opts)
-                                               (get-in opts [:rate-limit :window-ms]))
-                                           :window-ms)
-          amount (max 1 (long (or (:amount opts) 1)))
-          row (query-one datasource
-                         ["WITH bucket AS (
-                             SELECT to_timestamp(floor(extract(epoch from now()) * 1000 / ?) * ? / 1000.0) AS window_start
-                           ),
-                           upsert AS (
-                             INSERT INTO dcore_api_key_rate_windows (api_key_id, window_start, request_count)
-                             SELECT ?::uuid, bucket.window_start, ? FROM bucket
-                             ON CONFLICT (api_key_id, window_start)
-                             DO UPDATE SET request_count = dcore_api_key_rate_windows.request_count + EXCLUDED.request_count
-                             RETURNING window_start, request_count
-                           )
-                           SELECT window_start, request_count FROM upsert"
-                          window-ms
-                          window-ms
-                          (str api-key-id)
-                          amount])
-          request-count (long (or (row-get row :request_count) 0))
-          window-start (row-get row :window_start)
-          reset-at (+ (or (->epoch-ms window-start) (now-ms)) window-ms)
-          allowed? (<= request-count limit)
-          remaining (max 0 (- limit request-count))
-          retry-after-ms (when-not allowed?
-                           (max 0 (- reset-at (now-ms))))]
-      {:allowed? allowed?
-       :remaining remaining
-       :reset-at reset-at
-       :retry-after-ms retry-after-ms})))
+  )
 
 (defmethod ig/init-key :d-core.core.api-keys.postgres/store
-  [_ {:keys [postgres-client pepper logger bootstrap-schema?]
+  [_ {:keys [postgres-client pepper logger bootstrap-schema? last-used-update]
       :or {pepper ""
            bootstrap-schema? false}}]
   (when-not postgres-client
     (throw (ex-info "API key Postgres store requires :postgres-client"
                     {:type ::missing-postgres-client})))
-  (let [store (->PostgresApiKeyStore (:datasource postgres-client) pepper logger)]
+  (let [datasource (:datasource postgres-client)
+        last-used-tracker (new-last-used-tracker
+                           (merge {:datasource datasource
+                                   :logger logger}
+                                  (or last-used-update {})))
+        store (->PostgresApiKeyStore datasource pepper logger last-used-tracker)]
     (when bootstrap-schema?
       (p/ensure-schema! store {}))
     store))
+
+(defmethod ig/halt-key! :d-core.core.api-keys.postgres/store
+  [_ store]
+  (stop-last-used-tracker! (:last-used-tracker store)))

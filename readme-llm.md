@@ -43,7 +43,8 @@ Use this to translate drawings into concrete D-Core wiring:
   `:d-core.core.text-search.typesense/engine`.
 - Geo -> `:d-core.core.geo.tile38/index`.
 - Rate limiting -> `:d-core.core.rate-limit.sliding-window/limiter` or
-  `:d-core.core.rate-limit.leaky-bucket/limiter`.
+  `:d-core.core.rate-limit.leaky-bucket/limiter` or
+  `:d-core.core.rate-limit.redis/limiter`.
 - API key auth -> `:d-core.core.api-keys.postgres/store`,
   `:d-core.core.authn.api-key/authenticator`,
   `:d-core.core.auth.api-key/limitations-middleware`.

@@ -27,7 +27,7 @@ For `StorageProtocol`, the core operations are:
   - http client (policy wrapper: rate-limit, bulkhead, circuit breaker, retries)
   - graphql server (Lacinia + optional GraphiQL + subscriptions)
   - metrics (Prometheus registry + scrape server)
-  - rate limiting (sliding window, leaky bucket)
+  - rate limiting (sliding window, leaky bucket, redis fixed-window)
   - API keys (protocol + Postgres backend + auth/middleware integration)
   - cron tasks (Quartz-backed scheduler)
   - tracing helpers + Ring middleware
@@ -221,13 +221,19 @@ Metrics (Prometheus registry + dedicated scrape server):
                                           :registry #ig/ref :d-core.core.metrics.prometheus/registry}}}
 ```
 
-Rate limiting (in-memory, sliding window or leaky bucket):
+Rate limiting (in-memory or distributed):
 
 ```edn
 {:system
  {:d-core.core.rate-limit.sliding-window/limiter {:limit 100 :window-ms 60000}
   ;; or
-  :d-core.core.rate-limit.leaky-bucket/limiter {:capacity 200 :leak-rate-per-sec 50}}}
+  :d-core.core.rate-limit.leaky-bucket/limiter {:capacity 200 :leak-rate-per-sec 50}
+  ;; or (distributed, Redis-backed fixed window)
+  :d-core.core.clients.redis/client {:uri "redis://localhost:6379"}
+  :d-core.core.rate-limit.redis/limiter {:redis-client #ig/ref :d-core.core.clients.redis/client
+                                         :prefix "dcore:rate-limit:"
+                                         :limit 100
+                                         :window-ms 60000}}}
 ```
 
 Cron tasks (Quartz-backed scheduler):

@@ -17,7 +17,6 @@ Core operations:
 - `revoke-key!`
 - `rotate-key!`
 - `authenticate-key`
-- `consume-rate-limit!`
 
 ## Postgres backend
 
@@ -33,6 +32,24 @@ Common config:
 
 - `:pepper` (recommended)
 - `:bootstrap-schema?` (default `false`)
+- `:last-used-update` (optional async updater config)
+  - `{:mode :async :flush-interval-ms 2000 :max-batch-size 200}` (default)
+  - `{:mode :sync}` (forces per-request DB update)
+
+## Rate limiter backend (hot path)
+
+API-key rate limiting uses the shared `RateLimitProtocol`:
+
+- `d-core.core.rate-limit.protocol/RateLimitProtocol`
+
+Recommended backend for multi-instance production:
+
+- `:d-core.core.rate-limit.redis/limiter`
+
+In-memory alternatives remain available:
+
+- `:d-core.core.rate-limit.sliding-window/limiter`
+- `:d-core.core.rate-limit.leaky-bucket/limiter`
 
 ## API key authenticator
 
@@ -67,6 +84,7 @@ Built-in checks for API-key principals:
 - `:ip-allowlist`
 - `:ip-denylist`
 - `:rate-limit {:limit n :window-ms m}`
+- `:rate-limit-fail-open?` (`false` by default, `true` to allow traffic if limiter errors)
 
 ## Example wiring
 
@@ -79,7 +97,19 @@ Built-in checks for API-key principals:
  :d-core.core.api-keys.postgres/store
  {:postgres-client #ig/ref :d-core.core.clients.postgres/client
   :pepper "replace-in-production"
-  :bootstrap-schema? true}
+  :bootstrap-schema? true
+  :last-used-update {:mode :async
+                     :flush-interval-ms 2000
+                     :max-batch-size 200}}
+
+ :d-core.core.clients.redis/client
+ {:uri "redis://localhost:6379"}
+
+ :d-core.core.rate-limit.redis/limiter
+ {:redis-client #ig/ref :d-core.core.clients.redis/client
+  :prefix "dcore:rate-limit:"
+  :limit 100
+  :window-ms 60000}
 
  :d-core.core.authn.jwt/authenticator
  {:issuer "https://auth.example.com/realms/dev"
@@ -102,5 +132,6 @@ Built-in checks for API-key principals:
  {:authorizer #ig/ref :d-core.core.authz.scope/authorizer}
 
  :d-core.core.auth.api-key/limitations-middleware
- {:api-key-store #ig/ref :d-core.core.api-keys.postgres/store}}
+ {:rate-limiter #ig/ref :d-core.core.rate-limit.redis/limiter
+  :opts {:rate-limit-fail-open? false}}}
 ```

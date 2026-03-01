@@ -128,6 +128,10 @@ Applies per-key constraints for API key principals:
 - method allowlist
 - path allowlist
 - IP allowlist/denylist
+- limiter failure policy (`:rate-limit-fail-open?` in middleware opts)
+
+This middleware uses an injected `RateLimitProtocol` backend (for example
+` :d-core.core.rate-limit.redis/limiter`).
 
 ## Token client (service-to-service)
 
@@ -175,6 +179,16 @@ Common config:
  :d-core.core.auth.http/authorization-middleware
  {:authorizer #ig/ref :d-core.core.authz.scope/authorizer}
 
+ :d-core.core.clients.redis/client
+ {:uri "redis://localhost:6379"}
+
+ :d-core.core.rate-limit.redis/limiter
+ {:redis-client #ig/ref :d-core.core.clients.redis/client
+  :prefix "dcore:rate-limit:"
+  :limit 100
+  :window-ms 60000}
+
  :d-core.core.auth.api-key/limitations-middleware
- {:api-key-store #ig/ref :d-core.core.api-keys.postgres/store}}
+ {:rate-limiter #ig/ref :d-core.core.rate-limit.redis/limiter
+  :opts {:rate-limit-fail-open? false}}}
 ```

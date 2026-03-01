@@ -13,8 +13,7 @@
     (list-keys [_ _ _] [])
     (revoke-key! [_ _ _] {:revoked? false})
     (rotate-key! [_ _ _] nil)
-    (authenticate-key [_ token opts] (authenticate-fn token opts))
-    (consume-rate-limit! [_ _ _] {:allowed? true :remaining 1 :reset-at nil :retry-after-ms nil})))
+    (authenticate-key [_ token opts] (authenticate-fn token opts))))
 
 (deftest authenticate-success
   (testing "extracts x-api-key and builds principal"

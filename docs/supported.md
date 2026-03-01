@@ -58,11 +58,18 @@ This page tracks what D-Core currently supports, what is planned, and what is ex
 - API key limitations middleware (`:d-core.core.auth.api-key/limitations-middleware`)
 - Token client helpers (`:d-core.core.auth/token-client`)
 
+### Rate Limiting
+
+- In-memory sliding window (`:d-core.core.rate-limit.sliding-window/limiter`)
+- In-memory leaky bucket (`:d-core.core.rate-limit.leaky-bucket/limiter`)
+- Redis fixed-window limiter (`:d-core.core.rate-limit.redis/limiter`)
+
 ### API Keys
 
 - API key protocol (`d-core.core.api-keys.protocol/ApiKeyStore`)
 - Postgres backend (`:d-core.core.api-keys.postgres/store`)
-- Per-key fixed-window rate limiting (`consume-rate-limit!`)
+- Per-key fixed-window rate limiting via `RateLimitProtocol`
+  (recommended: `:d-core.core.rate-limit.redis/limiter`)
 - Per-key method/path/IP limitation checks (middleware-driven)
 
 ### GraphQL

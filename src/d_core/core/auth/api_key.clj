@@ -2,7 +2,7 @@
   (:require [clojure.string :as str]
             [duct.logger :as logger]
             [integrant.core :as ig]
-            [d-core.core.api-keys.protocol :as api-keys]))
+            [d-core.core.rate-limit.protocol :as rate-limit]))
 
 (defn- request-ip
   [req]
@@ -95,15 +95,19 @@
       {:allowed? true})))
 
 (defn- consume-rate-limit
-  [api-key-store api-key-id limits]
+  [rate-limiter api-key-id limits]
   (let [{:keys [limit window-ms]} (:rate-limit limits)]
     (if (and (number? limit) (number? window-ms) (pos? limit) (pos? window-ms))
-      (api-keys/consume-rate-limit! api-key-store api-key-id {:limit (long limit)
-                                                              :window-ms (long window-ms)})
+      (rate-limit/consume! rate-limiter
+                           (str "api-key:" api-key-id)
+                           {:limit (long limit)
+                            :window-ms (long window-ms)})
       {:allowed? true :remaining Long/MAX_VALUE :reset-at nil :retry-after-ms nil})))
 
 (defn wrap-api-key-limitations
-  [handler api-key-store {:keys [on-deny on-rate-limit logger] :as _opts}]
+  [handler rate-limiter {:keys [on-deny on-rate-limit on-rate-limit-error rate-limit-fail-open? logger]
+                         :or {rate-limit-fail-open? false}
+                         :as _opts}]
   (fn [req]
     (if-let [principal (auth-api-key-principal req)]
       (let [api-key-id (:api-key/id principal)
@@ -118,9 +122,39 @@
             (if on-deny
               (on-deny req request-check)
               (unauthorized-response (:reason request-check))))
-          (let [rate-check (consume-rate-limit api-key-store api-key-id limits)]
-            (if (:allowed? rate-check)
+          (let [rate-check
+                (try
+                  (consume-rate-limit rate-limiter api-key-id limits)
+                  (catch Exception ex
+                    (if rate-limit-fail-open?
+                      (do
+                        (when logger
+                          (logger/log logger :warn ::api-key-rate-limiter-error
+                                      {:api-key-id api-key-id
+                                       :mode :fail-open
+                                       :error (.getMessage ex)}))
+                        {:allowed? true
+                         :remaining Long/MAX_VALUE
+                         :reset-at nil
+                         :retry-after-ms nil})
+                      (do
+                        (when logger
+                          (logger/log logger :error ::api-key-rate-limiter-error
+                                      {:api-key-id api-key-id
+                                       :mode :fail-closed
+                                       :error (.getMessage ex)}))
+                        {:rate-limit-error? true
+                         :error ex}))))]
+            (cond
+              (:rate-limit-error? rate-check)
+              (if on-rate-limit-error
+                (on-rate-limit-error req (:error rate-check))
+                {:status 503 :body "Rate limiter unavailable"})
+
+              (:allowed? rate-check)
               (handler req)
+
+              :else
               (do
                 (when logger
                   (logger/log logger :warn ::api-key-rate-limited
@@ -133,11 +167,11 @@
       (handler req))))
 
 (defmethod ig/init-key :d-core.core.auth.api-key/limitations-middleware
-  [_ {:keys [api-key-store opts logger]}]
-  (when-not api-key-store
-    (throw (ex-info "API key limitations middleware requires :api-key-store"
-                    {:type ::missing-api-key-store})))
+  [_ {:keys [rate-limiter opts logger]}]
+  (when-not rate-limiter
+    (throw (ex-info "API key limitations middleware requires :rate-limiter"
+                    {:type ::missing-rate-limiter})))
   (when logger
     (logger/log logger :info ::api-key-limitations-middleware-initialized))
   (fn [handler]
-    (wrap-api-key-limitations handler api-key-store (merge {:logger logger} (or opts {})))))
+    (wrap-api-key-limitations handler rate-limiter (merge {:logger logger} (or opts {})))))

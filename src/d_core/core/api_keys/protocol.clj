@@ -28,15 +28,4 @@
      Returns {:api-key map :token string} where :token is shown once.")
   (authenticate-key [this token opts]
     "Validates a presented key token.
-     Returns a normalized map with identity + policy fields, or nil.")
-  (consume-rate-limit! [this api-key-id opts]
-    "Consumes a per-key rate-limit token.
-     Expected opts:
-     - :limit (required) positive integer
-     - :window-ms (required) positive integer
-     - :amount (optional, default 1)
-     Returns:
-     {:allowed? boolean
-      :remaining long
-      :reset-at epoch-ms
-      :retry-after-ms long|nil}."))
+     Returns a normalized map with identity + policy fields, or nil."))

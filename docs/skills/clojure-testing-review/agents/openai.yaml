@@ -1,0 +1,4 @@
+interface:
+  display_name: "Clojure Testing Reviewer"
+  short_description: "Review Clojure tests and test strategy"
+  default_prompt: "Use $clojure-testing-review to review the test quality, coverage, and reliability of this Clojure backend change."

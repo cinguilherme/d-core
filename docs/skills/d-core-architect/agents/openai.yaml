@@ -1,0 +1,4 @@
+interface:
+  display_name: "D-Core Architect"
+  short_description: "Design d-core architecture and abstractions"
+  default_prompt: "Use $d-core-architect to design a new d-core abstraction that fits the repo's protocol, component, and client layering."

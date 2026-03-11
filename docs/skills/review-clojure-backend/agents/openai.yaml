@@ -1,0 +1,4 @@
+interface:
+  display_name: "Clojure Backend Reviewer"
+  short_description: "Review Clojure Duct and Integrant backends"
+  default_prompt: "Use $review-clojure-backend to review Duct and Integrant backend changes with a production-focused Clojure lens."

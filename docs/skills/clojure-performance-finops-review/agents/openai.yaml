@@ -1,0 +1,4 @@
+interface:
+  display_name: "Clojure Perf and FinOps Reviewer"
+  short_description: "Review Clojure performance and cost risks"
+  default_prompt: "Use $clojure-performance-finops-review to review this Clojure backend change for performance hotspots and cost-amplifying design issues."

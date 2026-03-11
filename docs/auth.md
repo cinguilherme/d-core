@@ -49,6 +49,41 @@ Principal shape:
 - `:actor`
 - `:claims` (raw claims map)
 
+### API Key Authenticator
+
+Namespace: `d-core.core.authn.api-key`
+
+Integrant key: `:d-core.core.authn.api-key/authenticator`
+
+Required config:
+
+- `:api-key-store`
+
+Reads credentials from:
+
+- `x-api-key`
+- `Authorization: ApiKey <token>`
+- `Authorization: Api-Key <token>`
+
+Principal shape includes:
+
+- `:subject` (api key id)
+- `:tenant-id`
+- `:scopes`
+- `:auth-type` (`:api-key`)
+- `:api-key/id`
+- `:api-key/limits`
+- `:api-key/metadata`
+
+### Authenticator Chain
+
+Namespace: `d-core.core.authn.chain`
+
+Integrant key: `:d-core.core.authn.chain/authenticator`
+
+Use this when endpoints should accept multiple credential types (for example
+JWT and API keys) in priority order.
+
 ### Scope Authorizer
 
 Namespace: `d-core.core.authz.scope`
@@ -81,6 +116,23 @@ Integrant keys:
 - `:d-core.core.auth.http/authentication-middleware`
 - `:d-core.core.auth.http/authorization-middleware`
 
+### API key limitations middleware
+
+Namespace: `d-core.core.auth.api-key`
+
+Integrant key: `:d-core.core.auth.api-key/limitations-middleware`
+
+Applies per-key constraints for API key principals:
+
+- fixed-window rate limit (`:rate-limit {:limit ... :window-ms ...}`)
+- method allowlist
+- path allowlist
+- IP allowlist/denylist
+- limiter failure policy (`:rate-limit-fail-open?` in middleware opts)
+
+This middleware uses an injected `RateLimitProtocol` backend (for example
+` :d-core.core.rate-limit.redis/limiter`).
+
 ## Token client (service-to-service)
 
 Namespace: `d-core.core.auth.token-client`
@@ -112,11 +164,31 @@ Common config:
   :tenant-claim "tenant_id"
   :scope-claim "scope"}
 
+ :d-core.core.authn.api-key/authenticator
+ {:api-key-store #ig/ref :d-core.core.api-keys.postgres/store}
+
+ :d-core.core.authn.chain/authenticator
+ {:authenticators [#ig/ref :d-core.core.authn.jwt/authenticator
+                   #ig/ref :d-core.core.authn.api-key/authenticator]}
+
  :d-core.core.authz.scope/authorizer {}
 
  :d-core.core.auth.http/authentication-middleware
- {:authenticator #ig/ref :d-core.core.authn.jwt/authenticator}
+ {:authenticator #ig/ref :d-core.core.authn.chain/authenticator}
 
  :d-core.core.auth.http/authorization-middleware
- {:authorizer #ig/ref :d-core.core.authz.scope/authorizer}}
+ {:authorizer #ig/ref :d-core.core.authz.scope/authorizer}
+
+ :d-core.core.clients.redis/client
+ {:uri "redis://localhost:6379"}
+
+ :d-core.core.rate-limit.redis/limiter
+ {:redis-client #ig/ref :d-core.core.clients.redis/client
+  :prefix "dcore:rate-limit:"
+  :limit 100
+  :window-ms 60000}
+
+ :d-core.core.auth.api-key/limitations-middleware
+ {:rate-limiter #ig/ref :d-core.core.rate-limit.redis/limiter
+  :opts {:rate-limit-fail-open? false}}}
 ```

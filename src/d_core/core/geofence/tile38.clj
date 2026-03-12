@@ -229,8 +229,17 @@
                                          :limit 100}
                                         opts))
           item (some #(when (= (name-str fence-id) (hook-name %)) %) (hook-items resp))]
-      (if item
+      (cond
+        (and (map? resp) (false? (get resp :ok true)))
+        {:ok false
+         :error (or (:err resp) :backend-error)
+         :raw resp
+         :fence-id fence-id}
+
+        item
         {:ok true :item item :raw resp}
+
+        :else
         {:ok false :error :not-found :raw resp :fence-id fence-id})))
 
   (list-fences [_ query opts]

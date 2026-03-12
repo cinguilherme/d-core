@@ -21,10 +21,10 @@
           port (or (System/getenv "DCORE_TILE38_PORT") "9851")
           password (System/getenv "DCORE_TILE38_PASSWORD")
           default-password "tile38"]
-      (->> [(when (seq password)
+      (->> [(str "redis://" host ":" port)
+            (when (seq password)
               (str "redis://:" password "@" host ":" port))
-            (str "redis://:" default-password "@" host ":" port)
-            (str "redis://" host ":" port)]
+            (str "redis://:" default-password "@" host ":" port)]
            (remove nil?)
            distinct
            vec))))

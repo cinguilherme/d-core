@@ -1,5 +1,6 @@
 (ns d-core.core.geofence.tile38-test
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [cheshire.core :as json]
+            [clojure.test :refer [deftest is testing]]
             [d-core.core.clients.tile38.client :as tc]
             [d-core.core.geofence.protocol :as gp]
             [d-core.core.geofence.tile38 :as geo]))
@@ -104,26 +105,32 @@
                                                   :args args
                                                   :opts opts})
                                {:ok true :result true})]
-        (is (= {:ok true
-                :compiled ["WITHIN" "geo:tenant-1:fences" "FENCE" "OBJECT" "{\"type\":\"Polygon\",\"coordinates\":[]}"]
-                :result {:ok true :result true}}
-               (gp/test-fence geofence
-                              {:id "polygon-zone"
-                               :kind :static
-                               :source {:key "geo:tenant-1:fences"}
-                               :shape {:kind :geojson
-                                       :geometry {:type "Polygon"
-                                                  :coordinates []}}
-                               :operation :within
-                               :delivery {:endpoint "http://localhost:9898/hook"}}
-                              {:key "geo:tenant-1:actors"
-                               :id "driver:123"})))
-        (is (= [{:client :client
-                 :key "geo:tenant-1:actors"
-                 :id "driver:123"
-                 :args ["WITHIN" "OBJECT" "{\"type\":\"Polygon\",\"coordinates\":[]}"]
-                 :opts {:key "geo:tenant-1:actors" :id "driver:123"}}]
-               @calls))))))
+        (let [result (gp/test-fence geofence
+                                    {:id "polygon-zone"
+                                     :kind :static
+                                     :source {:key "geo:tenant-1:fences"}
+                                     :shape {:kind :geojson
+                                             :geometry {:type "Polygon"
+                                                        :coordinates []}}
+                                     :operation :within
+                                     :delivery {:endpoint "http://localhost:9898/hook"}}
+                                    {:key "geo:tenant-1:actors"
+                                     :id "driver:123"})
+              call (first @calls)]
+          (is (= true (:ok result)))
+          (is (= {:ok true :result true} (:result result)))
+          (is (= ["WITHIN" "geo:tenant-1:fences" "FENCE" "OBJECT"]
+                 (subvec (:compiled result) 0 4)))
+          (is (= {:type "Polygon" :coordinates []}
+                 (json/parse-string (nth (:compiled result) 4) true)))
+          (is (= {:client :client
+                  :key "geo:tenant-1:actors"
+                  :id "driver:123"
+                  :opts {:key "geo:tenant-1:actors" :id "driver:123"}}
+                 (select-keys call [:client :key :id :opts])))
+          (is (= ["WITHIN" "OBJECT"] (subvec (:args call) 0 2)))
+          (is (= {:type "Polygon" :coordinates []}
+                 (json/parse-string (nth (:args call) 2) true))))))))
 
 (deftest normalize-event-shapes
   (testing "static Tile38 payloads normalize into canonical events"

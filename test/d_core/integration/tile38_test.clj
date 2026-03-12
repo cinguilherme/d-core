@@ -21,10 +21,10 @@
           port (or (System/getenv "DCORE_TILE38_PORT") "9851")
           password (System/getenv "DCORE_TILE38_PASSWORD")
           default-password "tile38"]
-      (->> [(str "redis://" host ":" port)
-            (when (seq password)
+      (->> [(when (seq password)
               (str "redis://:" password "@" host ":" port))
-            (str "redis://:" default-password "@" host ":" port)]
+            (str "redis://:" default-password "@" host ":" port)
+            (str "redis://" host ":" port)]
            (remove nil?)
            distinct
            vec))))
@@ -38,6 +38,9 @@
       (if-let [uri (first remaining)]
         (let [client (t38/make-client {:uri uri})
               result (try
+                       ;; Probe before running the test body so clojure.test assertion
+                       ;; errors do not mask a bad URI choice and prevent fallback.
+                       (t38/hooks! client {:limit 1})
                        {:ok true :value (f client)}
                        (catch Exception e
                          {:ok false :error e}))]

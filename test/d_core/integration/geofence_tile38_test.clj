@@ -6,6 +6,7 @@
             [d-core.core.geofence.tile38 :as geo])
   (:import (com.sun.net.httpserver HttpExchange HttpHandler HttpServer)
            (java.net InetSocketAddress)
+           (java.nio.charset StandardCharsets)
            (java.util UUID)))
 
 (defn- integration-enabled?
@@ -26,10 +27,10 @@
           port (or (System/getenv "DCORE_TILE38_PORT") "9851")
           password (System/getenv "DCORE_TILE38_PASSWORD")
           default-password "tile38"]
-      (->> [(str "redis://" host ":" port)
-            (when (seq password)
+      (->> [(when (seq password)
               (str "redis://:" password "@" host ":" port))
-            (str "redis://:" default-password "@" host ":" port)]
+            (str "redis://:" default-password "@" host ":" port)
+            (str "redis://" host ":" port)]
            (remove nil?)
            distinct
            vec))))
@@ -43,6 +44,9 @@
       (if-let [uri (first remaining)]
         (let [client (t38/make-client {:uri uri})
               result (try
+                       ;; Probe before running the test body so clojure.test assertion
+                       ;; errors do not mask a bad URI choice and prevent fallback.
+                       (t38/hooks! client {:limit 1})
                        {:ok true :value (f client)}
                        (catch Exception e
                          {:ok false :error e}))]
@@ -66,11 +70,11 @@
     (.createContext server path
                     (reify HttpHandler
                       (^void handle [_ ^HttpExchange exchange]
-                        (let [body (slurp (.getRequestBody exchange))
+                        (let [body (slurp (.getRequestBody exchange) :encoding "UTF-8")
                               payload (if (seq body)
                                         (json/parse-string body true)
                                         nil)
-                              bytes (.getBytes "ok")]
+                              bytes (.getBytes "ok" StandardCharsets/UTF_8)]
                           (when payload
                             (swap! requests conj payload))
                           (.sendResponseHeaders exchange 200 (alength bytes))

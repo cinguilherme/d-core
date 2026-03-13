@@ -209,19 +209,20 @@
 (defn- normalize-event-object
   [m opts]
   (when (map? m)
-    (cond-> {:key (or (:key m)
-                      (:collection m)
-                      (:default-key opts))
-             :id (or (:id m) (:name m))}
-      (normalize-geometry m) (assoc :geometry (normalize-geometry m))
-      (:fields m) (assoc :fields (:fields m))
-      (some? (distance-value m)) (assoc :distance-m (distance-value m)))))
+    (let [geometry (normalize-geometry m)
+          distance (distance-value m)]
+      (cond-> {:key (or (:key m)
+                        (:collection m)
+                        (:default-key opts))
+               :id (or (:id m) (:name m))}
+        geometry (assoc :geometry geometry)
+        (:fields m) (assoc :fields (:fields m))
+        (some? distance) (assoc :distance-m distance)))))
 
 (defrecord Tile38Geofence [client]
   p/GeofenceProtocol
   (upsert-fence! [_ fence opts]
-    (let [fence (schema/validate-fence! fence)
-          args (compile-fence-args fence)]
+    (let [args (compile-fence-args fence)]
       (tc/sethook! client (:id fence) (get-in fence [:delivery :endpoint]) args opts)))
 
   (get-fence [_ fence-id opts]
@@ -253,8 +254,7 @@
     (tc/delhook! client fence-id opts))
 
   (test-fence [_ fence opts]
-    (let [fence (schema/validate-fence! fence)
-          compiled (compile-fence-args fence)]
+    (let [compiled (compile-fence-args fence)]
       (if (and (:key opts) (:id opts) (= :static (:kind fence)) (not= :nearby (:operation fence)))
         (let [test-args (compile-test-args fence)]
           {:ok true

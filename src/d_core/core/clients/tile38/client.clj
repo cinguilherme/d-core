@@ -251,3 +251,34 @@
                  limit (conj "LIMIT" limit))
                (shape-args shape)))]
     (request! client "INTERSECTS" args opts)))
+
+(defn sethook!
+  "Registers or replaces a Tile38 hook.
+
+  `args` should contain the Tile38 search clause after the endpoint, for example:
+  [\"NEARBY\" \"fleet\" \"FENCE\" ...]."
+  [client name endpoint args opts]
+  (request! client "SETHOOK" (into [(if (keyword? name) (name name) (str name))
+                                    endpoint]
+                                   args)
+            opts))
+
+(defn delhook!
+  [client name opts]
+  (request! client "DELHOOK" [(if (keyword? name) (name name) (str name))] opts))
+
+(defn hooks!
+  [client {:keys [pattern cursor limit] :as opts}]
+  (let [args (cond-> []
+               pattern (conj pattern)
+               (some? cursor) (conj "CURSOR" cursor)
+               limit (conj "COUNT" limit))]
+    (request! client "HOOKS" args opts)))
+
+(defn test!
+  "Executes Tile38 TEST against a single object.
+
+  `args` should contain the Tile38 spatial clause after key/id, for example:
+  [\"WITHIN\" \"OBJECT\" \"{...geojson...}\"]."
+  [client key id args opts]
+  (request! client "TEST" (into [key id] args) opts))

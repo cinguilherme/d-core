@@ -38,6 +38,9 @@
       (if-let [uri (first remaining)]
         (let [client (t38/make-client {:uri uri})
               result (try
+                       ;; Probe before running the test body so clojure.test assertion
+                       ;; errors do not mask a bad URI choice and prevent fallback.
+                       (t38/hooks! client {:limit 1})
                        {:ok true :value (f client)}
                        (catch Exception e
                          {:ok false :error e}))]

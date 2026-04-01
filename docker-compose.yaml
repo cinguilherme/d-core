@@ -37,6 +37,18 @@ services:
       TILE38_PASSWORD: tile38
     command: tile38-server /data --password tile38
 
+  nominatim:
+    image: mediagis/nominatim:5.2
+    ports:
+      - 8088:8080
+    environment:
+      PBF_URL: ${DCORE_NOMINATIM_PBF_URL:-https://download.geofabrik.de/europe/monaco-latest.osm.pbf}
+      REPLICATION_URL: ${DCORE_NOMINATIM_REPLICATION_URL:-https://download.geofabrik.de/europe/monaco-updates/}
+      NOMINATIM_PASSWORD: ${DCORE_NOMINATIM_PASSWORD:-nominatim}
+    volumes:
+      - nominatim_data:/var/lib/postgresql/16/main
+    shm_size: 1gb
+
   # open-street-map:
   #   image: overv/openstreetmap-tile-server
   #   ports:
@@ -208,4 +220,5 @@ volumes:
   rabbitmq_data:
   tile38_data:
   keycloak_data:
+  nominatim_data:
   # open-street-map_data:

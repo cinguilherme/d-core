@@ -43,6 +43,12 @@ This page tracks what D-Core currently supports, what is planned, and what is ex
 - Typesense
 - HTTP (policy wrapper: rate-limit, bulkhead, circuit breaker, retries)
 
+### Geocoding
+
+- Geocoding protocol (`d-core.core.geocoding.protocol/GeocodingProtocol`)
+- Nominatim geocoder (`:d-core.core.geocoding.nominatim/geocoder`)
+- Cached geocoder wrapper (`:d-core.core.geocoding.cached/geocoder`)
+
 ### Tracing
 
 - Context helpers (`d-core.tracing`)

@@ -54,6 +54,8 @@
 (defn- feature->result-item
   [feature licence]
   (let [geocoding (get-in feature [:properties :geocoding] {})
+        street-fallback (when (= "street" (:type geocoding))
+                          (:name geocoding))
         metadata (non-empty-map
                   {:name (:name geocoding)
                    :type (:type geocoding)
@@ -65,7 +67,7 @@
     {:formatted-address (:label geocoding)
      :location (point-from-geometry (:geometry feature))
      :components {:house-number (:housenumber geocoding)
-                  :street (:street geocoding)
+                  :street (or (:street geocoding) street-fallback)
                   :district (:district geocoding)
                   :city (:city geocoding)
                   :county (:county geocoding)

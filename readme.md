@@ -25,6 +25,7 @@ For `StorageProtocol`, the core operations are:
   - cryptography (simple AES + storage-backed key material)
   - clients (redis/valkey, memcached, sqs, kafka, jetstream/nats, sqlite/postgres, datomic (Work in Progress), typesense, rabbitmq)
   - http client (policy wrapper: rate-limit, bulkhead, circuit breaker, retries)
+  - geocoding (protocol + Nominatim + cached wrapper)
   - graphql server (Lacinia + optional GraphiQL + subscriptions)
   - metrics (Prometheus registry + scrape server)
   - rate limiting (sliding window, leaky bucket, redis fixed-window)
@@ -210,6 +211,32 @@ HTTP client example (illustrative):
                          :circuit-breaker {:failure-threshold 5}
                          :retry {:max-attempts 3}}}}}}
 ```
+
+Geocoding (Nominatim + cached wrapper):
+
+```edn
+{:system
+ {:d-core.core.http/client
+  {:id :nominatim
+   :base-url "http://localhost:8088"
+   :default-headers {"Accept" "application/json"}}
+
+  :d-core.core.geocoding.nominatim/geocoder
+  {:http-client #ig/ref :d-core.core.http/client
+   :user-agent "my-app geocoding"}
+
+  :d-core.core.cache.in-memory/in-memory {:logger #ig/ref :duct/logger}
+
+  :d-core.core.geocoding.cached/geocoder
+  {:id :nominatim
+   :geocoder #ig/ref :d-core.core.geocoding.nominatim/geocoder
+   :cache #ig/ref :d-core.core.cache.in-memory/in-memory
+   :hit-ttl-ms 2592000000
+   :empty-ttl-ms 3600000}}}
+```
+
+See [`docs/geocoding.md`](./docs/geocoding.md) for the full contract and public
+endpoint guidance.
 
 Metrics (Prometheus registry + dedicated scrape server):
 

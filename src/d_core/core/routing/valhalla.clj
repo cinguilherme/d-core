@@ -176,12 +176,13 @@
 
 (defn- request!
   [{:keys [http-client user-agent]} path payload opts]
-  (let [request {:method :get
+  (let [request {:method :post
                  :path path
                  :as :text
                  :headers {"Accept" "application/json"
+                           "Content-Type" "application/json"
                            "User-Agent" user-agent}
-                 :query-params {:json (json/generate-string payload)}}]
+                 :body (json/generate-string payload)}]
     (http/request! http-client
                    (cond-> request
                      (:request opts) (merge (:request opts))))))

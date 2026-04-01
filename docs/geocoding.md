@@ -167,11 +167,25 @@ No-result behavior:
 Configurable env vars:
 
 - `DCORE_NOMINATIM_PBF_URL` (defaults to Monaco extract)
-- `DCORE_NOMINATIM_REPLICATION_URL`
+- `DCORE_NOMINATIM_REPLICATION_URL` (defaults to Monaco updates URL)
+- `DCORE_NOMINATIM_UPDATE_MODE` (default `none`)
+- `DCORE_NOMINATIM_FREEZE` (default `true`)
+- `DCORE_NOMINATIM_IMPORT_STYLE` (default `address`)
+- `DCORE_NOMINATIM_THREADS` (default `1`)
+- `DCORE_NOMINATIM_POSTGRES_SHARED_BUFFERS` (default `256MB`)
+- `DCORE_NOMINATIM_POSTGRES_MAINTENANCE_WORK_MEM` (default `512MB`)
+- `DCORE_NOMINATIM_POSTGRES_AUTOVACUUM_WORK_MEM` (default `128MB`)
+- `DCORE_NOMINATIM_POSTGRES_EFFECTIVE_CACHE_SIZE` (default `1024MB`)
 - `DCORE_NOMINATIM_PASSWORD`
 
-The default Monaco extract keeps import size and startup time small for
-developer workflows.
+The default Monaco extract keeps import size and startup time small for local
+development. Use `DCORE_NOMINATIM_PBF_URL` to swap to another region when
+needed.
+
+The compose defaults intentionally favor lower-memory imports for local
+developer machines (including Apple Silicon). If your Docker VM has more RAM
+available and you want faster imports, raise the Postgres memory values and
+`DCORE_NOMINATIM_THREADS`.
 
 ## Integration tests
 

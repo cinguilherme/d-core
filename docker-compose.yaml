@@ -44,6 +44,14 @@ services:
     environment:
       PBF_URL: ${DCORE_NOMINATIM_PBF_URL:-https://download.geofabrik.de/europe/monaco-latest.osm.pbf}
       REPLICATION_URL: ${DCORE_NOMINATIM_REPLICATION_URL:-https://download.geofabrik.de/europe/monaco-updates/}
+      UPDATE_MODE: ${DCORE_NOMINATIM_UPDATE_MODE:-none}
+      FREEZE: ${DCORE_NOMINATIM_FREEZE:-true}
+      IMPORT_STYLE: ${DCORE_NOMINATIM_IMPORT_STYLE:-address}
+      THREADS: ${DCORE_NOMINATIM_THREADS:-1}
+      POSTGRES_SHARED_BUFFERS: ${DCORE_NOMINATIM_POSTGRES_SHARED_BUFFERS:-256MB}
+      POSTGRES_MAINTENANCE_WORK_MEM: ${DCORE_NOMINATIM_POSTGRES_MAINTENANCE_WORK_MEM:-512MB}
+      POSTGRES_AUTOVACUUM_WORK_MEM: ${DCORE_NOMINATIM_POSTGRES_AUTOVACUUM_WORK_MEM:-128MB}
+      POSTGRES_EFFECTIVE_CACHE_SIZE: ${DCORE_NOMINATIM_POSTGRES_EFFECTIVE_CACHE_SIZE:-1024MB}
       NOMINATIM_PASSWORD: ${DCORE_NOMINATIM_PASSWORD:-nominatim}
     volumes:
       - nominatim_data:/var/lib/postgresql/16/main
@@ -57,7 +65,7 @@ services:
   #     - open-street-map_data:/data
   #   environment:
   #     UPDATES_ENABLED: enabled
-  #     UPDATE_URL: http://download.geofabrik.de/europe/monaco-latest.osm.pbf
+  #     UPDATE_URL: https://download.geofabrik.de/europe/monaco-latest.osm.pbf
   #     TILE_DIR: /data
   #     TILE_STYLE: /data/style.yaml
   #     TILE_ZOOM: 12

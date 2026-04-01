@@ -26,6 +26,7 @@ For `StorageProtocol`, the core operations are:
   - clients (redis/valkey, memcached, sqs, kafka, jetstream/nats, sqlite/postgres, datomic (Work in Progress), typesense, rabbitmq)
   - http client (policy wrapper: rate-limit, bulkhead, circuit breaker, retries)
   - geocoding (protocol + Nominatim + cached wrapper)
+  - routing and matrix (protocol + OSRM + Valhalla)
   - graphql server (Lacinia + optional GraphiQL + subscriptions)
   - metrics (Prometheus registry + scrape server)
   - rate limiting (sliding window, leaky bucket, redis fixed-window)
@@ -237,6 +238,24 @@ Geocoding (Nominatim + cached wrapper):
 
 See [`docs/geocoding.md`](./docs/geocoding.md) for the full contract and public
 endpoint guidance.
+
+Routing and matrix (OSRM + Valhalla):
+
+```edn
+{:system
+ {:d-core.core.http/client
+  {:id :osrm
+   :base-url "http://localhost:5001"
+   :default-headers {"Accept" "application/json"}}
+
+  :d-core.core.routing.osrm/router
+  {:http-client #ig/ref :d-core.core.http/client
+   :user-agent "my-app routing/osrm"}}}
+```
+
+See [`docs/routing.md`](./docs/routing.md) for request/response schemas,
+provider behavior (including Valhalla wiring), and local docker-compose
+defaults.
 
 Metrics (Prometheus registry + dedicated scrape server):
 

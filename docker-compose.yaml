@@ -57,6 +57,50 @@ services:
       - nominatim_data:/var/lib/postgresql/16/main
     shm_size: 1gb
 
+  osrm:
+    image: ghcr.io/project-osrm/osrm-backend:v6.0.0
+    ports:
+      - 5001:5000
+    environment:
+      OSRM_PBF_URL: ${DCORE_OSRM_PBF_URL:-https://download.geofabrik.de/europe/monaco-latest.osm.pbf}
+      OSRM_PROFILE: ${DCORE_OSRM_PROFILE:-car}
+      OSRM_ALGORITHM: ${DCORE_OSRM_ALGORITHM:-mld}
+    volumes:
+      - osrm_data:/data
+    command: >
+      sh -ec '
+        if [ ! -s /data/map.osm.pbf ]; then
+          echo "Downloading OSM extract from $${OSRM_PBF_URL}";
+          wget -q -O /data/map.osm.pbf "$${OSRM_PBF_URL}";
+        fi;
+
+        if [ ! -s /data/map.osrm ]; then
+          echo "Preparing OSRM graph using profile $${OSRM_PROFILE}";
+          osrm-extract -p "/opt/$${OSRM_PROFILE}.lua" /data/map.osm.pbf;
+          if [ "$${OSRM_ALGORITHM}" = "ch" ]; then
+            osrm-contract /data/map.osrm;
+          else
+            osrm-partition /data/map.osrm;
+            osrm-customize /data/map.osrm;
+          fi;
+        fi;
+
+        exec osrm-routed --algorithm "$${OSRM_ALGORITHM}" /data/map.osrm
+      '
+
+  valhalla:
+    image: ghcr.io/valhalla/valhalla-scripted:latest
+    ports:
+      - 8002:8002
+    environment:
+      tile_urls: ${DCORE_VALHALLA_PBF_URL:-https://download.geofabrik.de/europe/monaco-latest.osm.pbf}
+      server_threads: ${DCORE_VALHALLA_THREADS:-1}
+      build_elevation: ${DCORE_VALHALLA_BUILD_ELEVATION:-False}
+      build_admins: ${DCORE_VALHALLA_BUILD_ADMINS:-True}
+      build_time_zones: ${DCORE_VALHALLA_BUILD_TIME_ZONES:-True}
+    volumes:
+      - valhalla_data:/custom_files
+
   # open-street-map:
   #   image: overv/openstreetmap-tile-server
   #   ports:
@@ -229,4 +273,6 @@ volumes:
   tile38_data:
   keycloak_data:
   nominatim_data:
+  osrm_data:
+  valhalla_data:
   # open-street-map_data:

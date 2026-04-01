@@ -49,6 +49,12 @@ This page tracks what D-Core currently supports, what is planned, and what is ex
 - Nominatim geocoder (`:d-core.core.geocoding.nominatim/geocoder`)
 - Cached geocoder wrapper (`:d-core.core.geocoding.cached/geocoder`)
 
+### Routing and Matrix
+
+- Routing protocol (`d-core.core.routing.protocol/RoutingProtocol`)
+- OSRM router (`:d-core.core.routing.osrm/router`)
+- Valhalla router (`:d-core.core.routing.valhalla/router`)
+
 ### Tracing
 
 - Context helpers (`d-core.tracing`)

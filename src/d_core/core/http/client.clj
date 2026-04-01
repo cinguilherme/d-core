@@ -294,45 +294,45 @@
       (loop [attempt 1]
         (when (policy-enabled? bulkhead)
           (bulkhead-acquire! bulkhead))
-        (try
-          (let [gate (when (policy-enabled? circuit-breaker)
-                       (circuit-before! circuit-breaker))]
-            (when (and gate (not (:allowed? gate)))
-              (throw (ex-info "Circuit breaker open"
-                              {:type ::circuit-open
-                               :client (:id client)})))
-            (let [result (try
-                           (when (policy-enabled? rate-limit)
-                             (rate-limit-acquire! rate-limit))
-                           (http/request request-opts)
-                           (catch Exception e
-                             e))
-                  failed? (or (instance? Exception result)
-                              (and (policy-enabled? circuit-breaker)
-                                   (response-failure? result (:config circuit-breaker))))
-                  eligible-method? (when retry-config
-                                     (retry-eligible-method? method retry-config))
-                  retryable? (and retry-config eligible-method?
-                                  (or (and (instance? Exception result)
-                                           (retry-eligible-exception? result retry-config))
-                                      (and (map? result)
-                                           (response-retry? result retry-config))))
-                  can-retry? (and retryable? (< attempt max-attempts))]
-              (when (policy-enabled? circuit-breaker)
-                (circuit-after! circuit-breaker gate failed?))
-              (cond
-                (and (instance? Exception result) can-retry?)
-                (do (Thread/sleep (calc-backoff-ms attempt retry-backoff))
-                    (recur (inc attempt)))
-
-                (and (map? result) can-retry?)
-                (do (Thread/sleep (calc-backoff-ms attempt retry-backoff))
-                    (recur (inc attempt)))
-
-                (instance? Exception result)
-                (throw result)
-
-                :else result)))
-          (finally
-            (when (policy-enabled? bulkhead)
-              (bulkhead-release! bulkhead))))))))
+        (let [outcome
+              (try
+                (let [gate (when (policy-enabled? circuit-breaker)
+                             (circuit-before! circuit-breaker))]
+                  (when (and gate (not (:allowed? gate)))
+                    (throw (ex-info "Circuit breaker open"
+                                    {:type ::circuit-open
+                                     :client (:id client)})))
+                  (let [result (try
+                                 (when (policy-enabled? rate-limit)
+                                   (rate-limit-acquire! rate-limit))
+                                 (http/request request-opts)
+                                 (catch Exception e
+                                   e))
+                        failed? (or (instance? Exception result)
+                                    (and (policy-enabled? circuit-breaker)
+                                         (response-failure? result (:config circuit-breaker))))
+                        eligible-method? (when retry-config
+                                           (retry-eligible-method? method retry-config))
+                        retryable? (and retry-config eligible-method?
+                                        (or (and (instance? Exception result)
+                                                 (retry-eligible-exception? result retry-config))
+                                            (and (map? result)
+                                                 (response-retry? result retry-config))))
+                        can-retry? (and retryable? (< attempt max-attempts))]
+                    (when (policy-enabled? circuit-breaker)
+                      (circuit-after! circuit-breaker gate failed?))
+                    (cond
+                      can-retry? {:action :retry}
+                      (instance? Exception result) {:action :throw
+                                                    :error result}
+                      :else {:action :return
+                             :value result})))
+                (finally
+                  (when (policy-enabled? bulkhead)
+                    (bulkhead-release! bulkhead))))]
+          (case (:action outcome)
+            :retry (do
+                     (Thread/sleep (calc-backoff-ms attempt retry-backoff))
+                     (recur (inc attempt)))
+            :throw (throw (:error outcome))
+            (:value outcome)))))))

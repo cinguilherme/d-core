@@ -42,7 +42,11 @@ It is intentionally **coupled to Integrant and Duct**. The “API surface” is 
 
 ### General Coding Rules
 
-- Modularization is extremely important.
-- Avoid too much nesting, extract functions to avoid too much nesting. If more than just one let binding is needed, extract to a function.
-- Use pure functions whenever possible. They should be easy to unit test. 
-- Always test in between changes to avoid regressions. "make tests" or clojure -M:test -n "target test name" to run a specific test.
+- Modularization is essential. Prefer pure functions for data transformation and isolate side effects.
+- Use pure functions whenever possible. They should be straightforward to unit test.
+- Clojure function naming should follow these conventions:
+  - Functions that return booleans should end with `?`, such as `valid?` or `exists?`.
+  - Functions that have side effects should end with `!`, such as `save!` or `delete!`.
+  - Functions that transform data from one shape to another should follow the `A->B` convention, such as `user->dto` or `order->event`.
+- To avoid repetitive `try`/`catch` blocks, use macros that wrap exception handling when appropriate. Existing wrappers live in `src/d_core/libs/tryable.clj` (namespace `d-core.libs.tryable`). If the current macros do not cover the need, define a new one.
+- Prefer threading macros when they improve readability and reduce nesting. Helper functions are usually better than deeply nested expressions.

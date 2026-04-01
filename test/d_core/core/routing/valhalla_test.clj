@@ -14,6 +14,10 @@
   []
   (valhalla/->ValhallaRouter (make-http-client) "d-core-tests"))
 
+(defn- request-payload
+  [request]
+  (json/parse-string (:body request) true))
+
 (deftest route-normalization
   (testing "route requests serialize payload and normalize a Valhalla trip"
     (let [request* (atom nil)
@@ -33,8 +37,10 @@
                                            {:lat 43.7299 :lon 7.4117}]
                                :steps true}
                               {})
-              payload (json/parse-string (get-in @request* [:query-params :json]) true)]
+              payload (request-payload @request*)]
+          (is (= :post (:method @request*)))
           (is (= "/route" (:path @request*)))
+          (is (= "application/json" (get-in @request* [:headers "Content-Type"])))
           (is (= "auto" (:costing payload)))
           (is (= true (:narrative payload)))
           (is (= :valhalla (:provider result)))
@@ -62,8 +68,10 @@
                                 :targets [{:lat 43.7299 :lon 7.4117}
                                           {:lat 43.7310 :lon 7.4170}]}
                                {})
-              payload (json/parse-string (get-in @request* [:query-params :json]) true)]
+              payload (request-payload @request*)]
+          (is (= :post (:method @request*)))
           (is (= "/sources_to_targets" (:path @request*)))
+          (is (= "application/json" (get-in @request* [:headers "Content-Type"])))
           (is (= "auto" (:costing payload)))
           (is (= :valhalla (:provider result)))
           (is (= [[120.0 nil] [140.0 180.0]] (:durations result)))

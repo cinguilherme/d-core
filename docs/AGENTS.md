@@ -48,5 +48,5 @@ It is intentionally **coupled to Integrant and Duct**. The “API surface” is 
   - Functions that return booleans should end with `?`, such as `valid?` or `exists?`.
   - Functions that have side effects should end with `!`, such as `save!` or `delete!`.
   - Functions that transform data from one shape to another should follow the `A->B` convention, such as `user->dto` or `order->event`.
-- To avoid repetitive `try`/`catch` blocks, use macros that wrap exception handling when appropriate. Existing wrappers live in `src/libs/tryable.clj`. If the current macros do not cover the need, define a new one.
+- To avoid repetitive `try`/`catch` blocks, use macros that wrap exception handling when appropriate. Existing wrappers live in `src/d_core/libs/tryable.clj` (namespace `d-core.libs.tryable`). If the current macros do not cover the need, define a new one.
 - Prefer threading macros when they improve readability and reduce nesting. Helper functions are usually better than deeply nested expressions.

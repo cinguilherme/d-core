@@ -101,6 +101,34 @@ services:
     volumes:
       - valhalla_data:/custom_files
 
+  tileserver:
+    image: maptiler/tileserver-gl:latest
+    ports:
+      - 8089:8080
+    volumes:
+      - tiles_data:/data
+    command: --port 8080 --file /data/${DCORE_TILESERVER_MBTILES:-monaco.mbtiles}
+    restart: unless-stopped
+
+  tilebuilder:
+    image: ghcr.io/onthegomap/planetiler:latest
+    profiles: ["tiles-build"]
+    environment:
+      JAVA_TOOL_OPTIONS: ${DCORE_TILEBUILDER_JAVA_TOOL_OPTIONS:--Xmx2g}
+    volumes:
+      - tiles_data:/data
+    command: >
+      --download
+      --area=${DCORE_TILEBUILDER_AREA:-monaco}
+      --download-dir=/data/sources
+      --tmpdir=/data/tmp
+      --minzoom=${DCORE_TILEBUILDER_MINZOOM:-0}
+      --maxzoom=${DCORE_TILEBUILDER_MAXZOOM:-12}
+      --render_maxzoom=${DCORE_TILEBUILDER_RENDER_MAXZOOM:-12}
+      --output=/data/${DCORE_TILESERVER_MBTILES:-monaco.mbtiles}
+      --force
+    restart: "no"
+
   # open-street-map:
   #   image: overv/openstreetmap-tile-server
   #   ports:
@@ -275,4 +303,5 @@ volumes:
   nominatim_data:
   osrm_data:
   valhalla_data:
+  tiles_data:
   # open-street-map_data:

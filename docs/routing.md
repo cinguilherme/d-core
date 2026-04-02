@@ -186,6 +186,7 @@ Behavior:
 
 - `osrm` on `localhost:5001`
 - `valhalla` on `localhost:8002`
+- `tileserver` on `localhost:8089` (serves local MBTiles for map visualization)
 
 OSRM env vars:
 
@@ -200,6 +201,27 @@ Valhalla env vars:
 - `DCORE_VALHALLA_BUILD_ELEVATION` (default `False`)
 - `DCORE_VALHALLA_BUILD_ADMINS` (default `True`)
 - `DCORE_VALHALLA_BUILD_TIME_ZONES` (default `True`)
+
+Tile env vars:
+
+- `DCORE_TILESERVER_MBTILES` (default `monaco.mbtiles`)
+- `DCORE_TILEBUILDER_AREA` (default `monaco`)
+- `DCORE_TILEBUILDER_JAVA_TOOL_OPTIONS` (default `-Xmx2g`)
+- `DCORE_TILEBUILDER_MINZOOM` (default `0`)
+- `DCORE_TILEBUILDER_MAXZOOM` (default `12`)
+- `DCORE_TILEBUILDER_RENDER_MAXZOOM` (default `12`)
+
+Build tiles once (on demand profile):
+
+```bash
+docker compose --profile tiles-build run --rm tilebuilder
+```
+
+Start tile server:
+
+```bash
+docker compose up -d tileserver
+```
 
 ## Integration tests
 

@@ -255,7 +255,9 @@ Routing and matrix (OSRM + Valhalla):
 
 See [`docs/routing.md`](./docs/routing.md) for request/response schemas,
 provider behavior (including Valhalla wiring), and local docker-compose
-defaults.
+defaults. The local compose setup also includes `tileserver` (port `8089`) and
+an on-demand `tilebuilder` profile to generate Monaco MBTiles for map
+visualization.
 
 Metrics (Prometheus registry + dedicated scrape server):
 

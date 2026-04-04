@@ -55,6 +55,14 @@ This page tracks what D-Core currently supports, what is planned, and what is ex
 - OSRM router (`:d-core.core.routing.osrm/router`)
 - Valhalla router (`:d-core.core.routing.valhalla/router`)
 
+### AI Generation
+
+- Generation protocol (`d-core.core.ai.protocol/GenerationProtocol`)
+- Capabilities protocol (`d-core.core.ai.protocol/ModelCapabilitiesProtocol`)
+- LM Studio OpenAI-compatible provider (`:d-core.core.ai.lm-studio.openai/provider`)
+- Common AI delegator (`:d-core.core.ai/common`)
+- Text generation + structured JSON output + vision input (`image->text`)
+
 ### Tracing
 
 - Context helpers (`d-core.tracing`)
@@ -109,3 +117,6 @@ This page tracks what D-Core currently supports, what is planned, and what is ex
 
 - Split artifacts per backend (keep as single lib for now; consider later)
 - More formal compatibility guarantees and versioning policy
+- AI streaming contract
+- AI image generation contract
+- Native LM Studio variant adapter

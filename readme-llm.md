@@ -42,6 +42,8 @@ Use this to translate drawings into concrete D-Core wiring:
 - Search -> `:d-core.core.text-search/common` with
   `:d-core.core.text-search.typesense/engine`.
 - Geo -> `:d-core.core.geo.tile38/index`.
+- AI generation -> `:d-core.core.ai/common` with
+  `:d-core.core.ai.lm-studio.openai/provider`.
 - Rate limiting -> `:d-core.core.rate-limit.sliding-window/limiter` or
   `:d-core.core.rate-limit.leaky-bucket/limiter` or
   `:d-core.core.rate-limit.redis/limiter`.
@@ -130,6 +132,8 @@ protocols:
 - Datomic: `d-core.core.databases.protocols.datomic/DatomicProtocol`
 - Geo: `d-core.core.geo.protocol/GeoIndexProtocol`
 - Dead letters: `d-core.core.messaging.dead-letter.protocol/DeadLetterProtocol`
+- AI generation: `d-core.core.ai.protocol/GenerationProtocol`
+- AI capabilities: `d-core.core.ai.protocol/ModelCapabilitiesProtocol`
 
 ## Drawing-to-implementation checklist
 
@@ -150,3 +154,4 @@ protocols:
 - `docs/time.md`
 - `docs/supported.md`
 - `docs/api_keys.md`
+- `docs/ai.md`

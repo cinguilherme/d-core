@@ -27,6 +27,7 @@ For `StorageProtocol`, the core operations are:
   - http client (policy wrapper: rate-limit, bulkhead, circuit breaker, retries)
   - geocoding (protocol + Nominatim + cached wrapper)
   - routing and matrix (protocol + OSRM + Valhalla)
+  - AI generation (provider-neutral protocol + LM Studio OpenAI-compatible adapter)
   - graphql server (Lacinia + optional GraphiQL + subscriptions)
   - metrics (Prometheus registry + scrape server)
   - rate limiting (sliding window, leaky bucket, redis fixed-window)
@@ -77,6 +78,7 @@ And `d-core` provides the infrastructure keys:
 - `:d-core.core.consumers/*`
 - `:d-core.core.cache/*`
 - `:d-core.core.storage/*`
+- `:d-core.core.ai/*`
 - `:d-core.core.tracing.http/middleware`
 - `:d-core.core.metrics.prometheus/*`
 - `:d-core.core.rate-limit.*/*`
@@ -258,6 +260,29 @@ provider behavior (including Valhalla wiring), and local docker-compose
 defaults. The local compose setup also includes `tileserver` (port `8089`) and
 an on-demand `tilebuilder` profile to generate Monaco MBTiles for map
 visualization.
+
+AI generation (LM Studio OpenAI-compatible):
+
+```edn
+{:system
+ {:d-core.core.http/client
+  {:id :lm-studio
+   :base-url "http://localhost:1234/v1"
+   :default-headers {"Accept" "application/json"}
+   :http-opts {:socket-timeout 60000
+               :conn-timeout 60000}}
+
+  :d-core.core.ai.lm-studio.openai/provider
+  {:http-client #ig/ref :d-core.core.http/client
+   :default-model "qwen2.5-7b-instruct"}
+
+  :d-core.core.ai/common
+  {:default-provider :lm-studio-openai
+   :providers {:lm-studio-openai #ig/ref :d-core.core.ai.lm-studio.openai/provider}}}}
+```
+
+See [`docs/ai.md`](./docs/ai.md) for canonical request/response schemas,
+structured output behavior, error categories, and dev playground workflow.
 
 Metrics (Prometheus registry + dedicated scrape server):
 

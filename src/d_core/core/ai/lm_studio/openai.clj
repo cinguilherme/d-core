@@ -124,10 +124,10 @@
   [{:keys [role content tool-call-id]
     :as message}]
   (let [message-name (:name message)]
-  (cond-> {:role (name role)
-           :content (mapv content-part->openai content)}
-    message-name (assoc :name message-name)
-    tool-call-id (assoc :tool_call_id tool-call-id))))
+    (cond-> {:role (name role)
+             :content (mapv content-part->openai content)}
+      message-name (assoc :name message-name)
+      tool-call-id (assoc :tool_call_id tool-call-id))))
 
 (defn- output->response-format
   [{:keys [type schema strict? name]}]

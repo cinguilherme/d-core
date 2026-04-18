@@ -99,6 +99,7 @@ Component options:
 - Redis/Valkey only: `:prefix` defaults to `"dcore:leader-election:"`
 - Postgres only: `:table-name` defaults to `"dcore_leader_elections"`
 - Postgres only: `:bootstrap-schema?` defaults to `false`
+- Postgres lease expiry is evaluated from database time; `:clock` is not authoritative for Postgres lease validity
 
 ## Usage
 
@@ -123,9 +124,10 @@ Component options:
 
 - Redis and Valkey use a single lease key per election and a separate monotonic fencing counter.
 - Postgres uses a single persistent row per election and preserves fencing across release/reacquire cycles.
+- Redis, Valkey, and Postgres all evaluate lease expiry authoritatively in the backend they coordinate through.
 - Fencing increments only on fresh acquisition, not on renewals.
 - Renew and release are token-checked, so one holder cannot accidentally release another holder’s lease after expiry.
-- The Postgres backend preserves the lease contract with a table-backed design. It does **not** use advisory locks.
+- The Postgres backend preserves the lease contract with a table-backed design using database time. It does **not** use advisory locks.
 - The Redis/Valkey backends are single-endpoint lease coordination. They are **not** Redlock or multi-master quorum consensus.
 - The Postgres backend works with existing pooled or unpooled `postgres-client` datasources.
 - Quartz JDBC clustering remains a Quartz-specific coordination mechanism and is not reused by this abstraction.

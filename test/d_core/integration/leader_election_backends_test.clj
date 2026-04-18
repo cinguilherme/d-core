@@ -52,6 +52,16 @@
                (redis-common/fencing-key prefix election-id)]]
     (del-key! client key)))
 
+(defn- wait-for
+  [pred timeout-ms]
+  (let [deadline (+ (System/currentTimeMillis) timeout-ms)]
+    (loop []
+      (if (pred)
+        true
+        (if (< (System/currentTimeMillis) deadline)
+          (do (Thread/sleep 20) (recur))
+          false)))))
+
 (deftest leader-election-backends-roundtrip
   (doseq [{backend-name :name :keys [env-var make-client make-component] :as backend} backend-cases]
     (testing (str backend-name " leader election roundtrip")
@@ -104,12 +114,11 @@
                       :election-id election-id}
                      (p/status leader-a election-id nil))))
 
-            (let [first-acquire (p/acquire! leader-a election-id {:lease-ms 100})
+            (let [first-acquire (p/acquire! leader-a election-id {:lease-ms 250})
                   first-fencing (:fencing first-acquire)]
               (is (= :acquired (:status first-acquire)))
-              (Thread/sleep 150)
-              (is (= :vacant (:status (p/status leader-a election-id nil))))
-              (let [second-acquire (p/acquire! leader-b election-id {:lease-ms 100})]
+              (is (wait-for #(= :vacant (:status (p/status leader-a election-id nil))) 2000))
+              (let [second-acquire (p/acquire! leader-b election-id {:lease-ms 250})]
                 (is (= :acquired (:status second-acquire)))
                 (is (> (:fencing second-acquire) first-fencing))
                 (is (= "node-b" (:owner-id second-acquire)))

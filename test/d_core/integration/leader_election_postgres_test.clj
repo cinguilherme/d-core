@@ -1,6 +1,7 @@
 (ns d-core.integration.leader-election-postgres-test
   (:require [clojure.test :refer [deftest is testing]]
             [d-core.core.clients.postgres.client :as postgres-client]
+            [d-core.core.leader-election.postgres]
             [d-core.core.leader-election.protocol :as p]
             [integrant.core :as ig]
             [next.jdbc :as jdbc])
@@ -33,6 +34,16 @@
   (jdbc/execute! datasource
                  ["DELETE FROM dcore_leader_elections WHERE election_id = ?"
                   election-id]))
+
+(defn- wait-for
+  [pred timeout-ms]
+  (let [deadline (+ (System/currentTimeMillis) timeout-ms)]
+    (loop []
+      (if (pred)
+        true
+        (if (< (System/currentTimeMillis) deadline)
+          (do (Thread/sleep 20) (recur))
+          false)))))
 
 (deftest postgres-leader-election-roundtrip
   (testing "postgres backend preserves leader-election semantics"
@@ -92,12 +103,11 @@
                     :election-id election-id}
                    (p/status leader-a election-id nil))))
 
-          (let [first-acquire (p/acquire! leader-a election-id {:lease-ms 100})
+          (let [first-acquire (p/acquire! leader-a election-id {:lease-ms 250})
                 first-fencing (:fencing first-acquire)]
             (is (= :acquired (:status first-acquire)))
-            (Thread/sleep 150)
-            (is (= :vacant (:status (p/status leader-a election-id nil))))
-            (let [second-acquire (p/acquire! leader-b election-id {:lease-ms 100})]
+            (is (wait-for #(= :vacant (:status (p/status leader-a election-id nil))) 2000))
+            (let [second-acquire (p/acquire! leader-b election-id {:lease-ms 250})]
               (is (= :acquired (:status second-acquire)))
               (is (> (:fencing second-acquire) first-fencing))
               (is (= "node-b" (:owner-id second-acquire)))

@@ -31,6 +31,7 @@ For `StorageProtocol`, the core operations are:
   - graphql server (Lacinia + optional GraphiQL + subscriptions)
   - metrics (Prometheus registry + scrape server)
   - rate limiting (sliding window, leaky bucket, redis fixed-window)
+  - leader election (lease-based Redis/Valkey backends)
   - API keys (protocol + Postgres backend + auth/middleware integration)
   - cron tasks (Quartz-backed scheduler)
   - tracing helpers + Ring middleware
@@ -82,6 +83,7 @@ And `d-core` provides the infrastructure keys:
 - `:d-core.core.tracing.http/middleware`
 - `:d-core.core.metrics.prometheus/*`
 - `:d-core.core.rate-limit.*/*`
+- `:d-core.core.leader-election.*/*`
 - `:d-core.queue/*`
 
 Example (illustrative):
@@ -308,6 +310,36 @@ Rate limiting (in-memory or distributed):
                                          :limit 100
                                          :window-ms 60000}}}
 ```
+
+Leader election (lease-based singleton coordination):
+
+```edn
+{:system
+ {:d-core.core.clients.redis/client {:uri "redis://localhost:6379"}
+  :d-core.core.leader-election.redis/redis
+  {:redis-client #ig/ref :d-core.core.clients.redis/client
+   :owner-id "orders-worker-1"
+   :prefix "dcore:leader-election:"
+   :default-lease-ms 15000}}}
+```
+
+Example usage:
+
+```clj
+(require '[d-core.core.leader-election.protocol :as leader])
+
+(let [lease (leader/acquire! election :orders-worker {:lease-ms 5000})]
+  (when (= :acquired (:status lease))
+    (leader/renew! election :orders-worker (:token lease) {:lease-ms 5000})
+    (leader/resign! election :orders-worker (:token lease) nil)))
+```
+
+Notes:
+- This capability is intentionally separate from Quartz. Quartz JDBC clustering remains scheduler-specific coordination.
+- The Redis/Valkey backends are single-endpoint lease semantics with token-checked renew/release. They are not Redlock quorum coordination.
+- v1 is low-level only: no auto-renew helper or “run while leader” runtime is included.
+
+See [`docs/leader_election.md`](./docs/leader_election.md) for the full contract, config options, and backend notes.
 
 Cron tasks (Quartz-backed scheduler):
 

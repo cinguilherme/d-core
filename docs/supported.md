@@ -102,6 +102,12 @@ This page tracks what D-Core currently supports, what is planned, and what is ex
 
 - Cron tasks (Quartz-backed scheduler component)
 
+### Coordination
+
+- Leader election protocol (`d-core.core.leader-election.protocol/LeaderElectionProtocol`)
+- Redis-backed leader election (`:d-core.core.leader-election.redis/redis`)
+- Valkey-backed leader election (`:d-core.core.leader-election.valkey/valkey`)
+
 ### Dev/test helpers
 
 - In-memory queues (`:d-core.queue/*`)

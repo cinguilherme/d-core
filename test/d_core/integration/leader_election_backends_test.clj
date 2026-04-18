@@ -1,7 +1,7 @@
 (ns d-core.integration.leader-election-backends-test
   (:require [clojure.test :refer [deftest is testing]]
-            [d-core.core.leader-election.common :as common]
             [d-core.core.leader-election.protocol :as p]
+            [d-core.core.leader-election.redis-common :as redis-common]
             [d-core.core.leader-election.redis :as redis]
             [d-core.core.leader-election.valkey :as valkey]
             [d-core.core.clients.redis.client :as redis-client]
@@ -48,8 +48,8 @@
 
 (defn- cleanup-election!
   [client prefix election-id]
-  (doseq [key [(common/lease-key prefix election-id)
-               (common/fencing-key prefix election-id)]]
+  (doseq [key [(redis-common/lease-key prefix election-id)
+               (redis-common/fencing-key prefix election-id)]]
     (del-key! client key)))
 
 (deftest leader-election-backends-roundtrip

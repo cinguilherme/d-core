@@ -7,11 +7,12 @@ v1 includes:
 - a portable `LeaderElectionProtocol`
 - Redis-backed leader election (`:d-core.core.leader-election.redis/redis`)
 - Valkey-backed leader election (`:d-core.core.leader-election.valkey/valkey`)
+- Postgres-backed leader election (`:d-core.core.leader-election.postgres/postgres`)
 
 v1 intentionally does **not** include:
 - Quartz coupling
 - a scheduler/runtime helper that auto-renews in the background
-- JDBC/Postgres, Kubernetes Lease, or ZooKeeper backends
+- Kubernetes Lease or ZooKeeper backends
 
 ## Protocol
 
@@ -72,12 +73,32 @@ Portable result fields:
    :default-lease-ms 15000}}}
 ```
 
+### Postgres
+
+```edn
+{:system
+ {:d-core.core.clients.postgres/client
+  {:jdbc-url "jdbc:postgresql://localhost:5432/core-service"
+   :username "postgres"
+   :password "postgres"
+   :pool? true}
+
+  :d-core.core.leader-election.postgres/postgres
+  {:postgres-client #ig/ref :d-core.core.clients.postgres/client
+   :owner-id "orders-worker-1"
+   :bootstrap-schema? true
+   :table-name "dcore_leader_elections"
+   :default-lease-ms 15000}}}
+```
+
 Component options:
-- `:redis-client` or `:valkey-client` is required
+- `:redis-client`, `:valkey-client`, or `:postgres-client` is required depending on backend
 - `:owner-id` defaults to `<hostname>:<uuid>`; production systems should set this explicitly
-- `:prefix` defaults to `"dcore:leader-election:"`
 - `:default-lease-ms` defaults to `15000`
 - `:clock` may be a `java.time.Clock`, a `d-core.libs.time/clock` component, a clock opts map, or a function returning epoch ms / `Instant`
+- Redis/Valkey only: `:prefix` defaults to `"dcore:leader-election:"`
+- Postgres only: `:table-name` defaults to `"dcore_leader_elections"`
+- Postgres only: `:bootstrap-schema?` defaults to `false`
 
 ## Usage
 
@@ -101,7 +122,10 @@ Component options:
 ## Semantics And Limits
 
 - Redis and Valkey use a single lease key per election and a separate monotonic fencing counter.
+- Postgres uses a single persistent row per election and preserves fencing across release/reacquire cycles.
 - Fencing increments only on fresh acquisition, not on renewals.
 - Renew and release are token-checked, so one holder cannot accidentally release another holder’s lease after expiry.
-- This is single-endpoint lease coordination. It is **not** Redlock or multi-master quorum consensus.
+- The Postgres backend preserves the lease contract with a table-backed design. It does **not** use advisory locks.
+- The Redis/Valkey backends are single-endpoint lease coordination. They are **not** Redlock or multi-master quorum consensus.
+- The Postgres backend works with existing pooled or unpooled `postgres-client` datasources.
 - Quartz JDBC clustering remains a Quartz-specific coordination mechanism and is not reused by this abstraction.

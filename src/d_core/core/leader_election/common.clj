@@ -1,75 +1,12 @@
 (ns d-core.core.leader-election.common
   (:require [clojure.string :as str]
-            [d-core.core.clients.redis.utils :as redis-utils]
             [d-core.libs.time :as time])
   (:import [java.net InetAddress]
            [java.time Clock Instant]
            [java.util UUID]))
 
-(def default-prefix
-  "dcore:leader-election:")
-
 (def default-lease-ms
   15000)
-
-(def ^:private shared-script-preamble
-  "local call = redis and redis.call or server.call;")
-
-(def acquire-lua
-  (str shared-script-preamble
-       "if call('EXISTS', KEYS[1]) == 0 then "
-       "  local fencing = call('INCR', KEYS[2]);"
-       "  call('HSET', KEYS[1], "
-       "       'owner_id', ARGV[1], "
-       "       'token', ARGV[2], "
-       "       'fencing', tostring(fencing), "
-       "       'acquired_at_ms', ARGV[3], "
-       "       'renewed_at_ms', ARGV[3]);"
-       "  call('PEXPIRE', KEYS[1], ARGV[4]);"
-       "  return {'acquired', ARGV[1], tostring(fencing), ARGV[2], ARGV[4]};"
-       "end;"
-       "local ttl = call('PTTL', KEYS[1]);"
-       "local values = call('HMGET', KEYS[1], 'owner_id', 'fencing');"
-       "return {'busy', values[1], values[2], '', tostring(ttl)};"))
-
-(def renew-lua
-  (str shared-script-preamble
-       "local current = call('HGET', KEYS[1], 'token');"
-       "if not current then "
-       "  return {'lost'};"
-       "end;"
-       "local ttl = call('PTTL', KEYS[1]);"
-       "if current ~= ARGV[1] then "
-       "  local values = call('HMGET', KEYS[1], 'owner_id', 'fencing');"
-       "  return {'lost', values[1], values[2], tostring(ttl)};"
-       "end;"
-       "call('HSET', KEYS[1], 'renewed_at_ms', ARGV[2]);"
-       "call('PEXPIRE', KEYS[1], ARGV[3]);"
-       "local values = call('HMGET', KEYS[1], 'owner_id', 'fencing');"
-       "return {'renewed', values[1], values[2], ARGV[1], ARGV[3]};"))
-
-(def resign-lua
-  (str shared-script-preamble
-       "local current = call('HGET', KEYS[1], 'token');"
-       "if not current then "
-       "  return {'not-owner'};"
-       "end;"
-       "local ttl = call('PTTL', KEYS[1]);"
-       "local values = call('HMGET', KEYS[1], 'owner_id', 'fencing');"
-       "if current ~= ARGV[1] then "
-       "  return {'not-owner', values[1], values[2], tostring(ttl)};"
-       "end;"
-       "call('DEL', KEYS[1]);"
-       "return {'released', values[1], values[2]};"))
-
-(def status-lua
-  (str shared-script-preamble
-       "if call('EXISTS', KEYS[1]) == 0 then "
-       "  return {'vacant'};"
-       "end;"
-       "local ttl = call('PTTL', KEYS[1]);"
-       "local values = call('HMGET', KEYS[1], 'owner_id', 'fencing');"
-       "return {'held', values[1], values[2], tostring(ttl)};"))
 
 (defn default-clock
   []
@@ -110,19 +47,18 @@
                        :value value})))
     v))
 
-(defn normalize-prefix
-  [prefix]
-  (let [value (str (or prefix default-prefix))]
-    (when (str/blank? value)
-      (throw (ex-info "Leader election prefix must not be blank"
-                      {:type ::invalid-prefix
-                       :prefix prefix})))
-    value))
+(defn normalize-key-part
+  [value]
+  (cond
+    (nil? value) nil
+    (string? value) value
+    (keyword? value) (name value)
+    (bytes? value) (String. ^bytes value "UTF-8")
+    :else (str value)))
 
 (defn normalize-election-id
   [election-id]
-  (let [value (when (some? election-id)
-                (redis-utils/normalize-key election-id))]
+  (let [value (normalize-key-part election-id)]
     (when (str/blank? value)
       (throw (ex-info "Leader election requires a non-blank election id"
                       {:type ::invalid-election-id
@@ -163,14 +99,6 @@
   [opts default-lease-ms]
   (require-positive-long (or (:lease-ms opts) default-lease-ms) :lease-ms))
 
-(defn lease-key
-  [prefix election-id]
-  (str prefix election-id ":lease"))
-
-(defn fencing-key
-  [prefix election-id]
-  (str prefix election-id ":fencing"))
-
 (defn parse-long-safe
   [value]
   (when (some? value)
@@ -184,6 +112,11 @@
   (let [value (parse-long-safe ttl-ms)]
     (when (and (some? value) (>= value 0))
       value)))
+
+(defn remaining-ttl-ms
+  [expires-at-ms now-ms]
+  (when (and (some? expires-at-ms) (some? now-ms))
+    (max 0 (- (long expires-at-ms) (long now-ms)))))
 
 (defn- status-keyword
   [raw allowed]

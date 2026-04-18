@@ -2,6 +2,7 @@
   (:require [clojure.test :refer [deftest is testing]]
             [d-core.core.leader-election.common :as common]
             [d-core.core.leader-election.protocol :as p]
+            [d-core.core.leader-election.redis-common :as redis-common]
             [d-core.core.leader-election.redis :as redis]
             [d-core.core.leader-election.valkey :as valkey]
             [integrant.core :as ig]))
@@ -180,7 +181,7 @@
   (doseq [{:keys [name init-key client-key]} backend-cases]
     (testing (str name " init-key applies defaults")
       (let [component (ig/init-key init-key {client-key :client})]
-        (is (= common/default-prefix (:prefix component)))
+        (is (= redis-common/default-prefix (:prefix component)))
         (is (= common/default-lease-ms (:default-lease-ms component)))
         (is (string? (:owner-id component)))
         (is (re-find #":" (:owner-id component)))))

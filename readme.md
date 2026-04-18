@@ -323,6 +323,22 @@ Leader election (lease-based singleton coordination):
    :default-lease-ms 15000}}}
 ```
 
+Postgres-backed leader election:
+
+```edn
+{:system
+ {:d-core.core.clients.postgres/client
+  {:jdbc-url "jdbc:postgresql://localhost:5432/core-service"
+   :username "postgres"
+   :password "postgres"}
+
+  :d-core.core.leader-election.postgres/postgres
+  {:postgres-client #ig/ref :d-core.core.clients.postgres/client
+   :owner-id "orders-worker-1"
+   :bootstrap-schema? true
+   :default-lease-ms 15000}}}
+```
+
 Example usage:
 
 ```clj
@@ -336,7 +352,8 @@ Example usage:
 
 Notes:
 - This capability is intentionally separate from Quartz. Quartz JDBC clustering remains scheduler-specific coordination.
-- The Redis/Valkey backends are single-endpoint lease semantics with token-checked renew/release. They are not Redlock quorum coordination.
+- Redis/Valkey are single-endpoint lease semantics with token-checked renew/release. They are not Redlock quorum coordination.
+- Postgres preserves the same lease contract through a table-backed design and works with the existing `postgres-client`.
 - v1 is low-level only: no auto-renew helper or “run while leader” runtime is included.
 
 See [`docs/leader_election.md`](./docs/leader_election.md) for the full contract, config options, and backend notes.

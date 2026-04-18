@@ -107,6 +107,7 @@ This page tracks what D-Core currently supports, what is planned, and what is ex
 - Leader election protocol (`d-core.core.leader-election.protocol/LeaderElectionProtocol`)
 - Redis-backed leader election (`:d-core.core.leader-election.redis/redis`)
 - Valkey-backed leader election (`:d-core.core.leader-election.valkey/valkey`)
+- Postgres-backed leader election (`:d-core.core.leader-election.postgres/postgres`)
 
 ### Dev/test helpers
 

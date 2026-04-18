@@ -3,20 +3,11 @@
             [d-core.core.leader-election.common :as common]
             [d-core.libs.time :as time]))
 
-(deftest prefix-and-election-id-normalization
-  (testing "prefix defaults and custom values are normalized to strings"
-    (is (= common/default-prefix (common/normalize-prefix nil)))
-    (is (= "custom:" (common/normalize-prefix "custom:")))
-    (is (= "123" (common/normalize-prefix 123))))
-
-  (testing "blank prefix is rejected"
-    (is (thrown-with-msg?
-         clojure.lang.ExceptionInfo
-         #"prefix must not be blank"
-         (common/normalize-prefix ""))))
-
+(deftest election-id-normalization
   (testing "election ids are normalized and blanks are rejected"
     (is (= "orders" (common/normalize-election-id :orders)))
+    (is (= "orders" (common/normalize-election-id "orders")))
+    (is (= "bytes" (common/normalize-election-id (.getBytes "bytes" "UTF-8"))))
     (is (= "123" (common/normalize-election-id 123)))
     (is (thrown-with-msg?
          clojure.lang.ExceptionInfo
@@ -59,6 +50,11 @@
          clojure.lang.ExceptionInfo
          #"greater than zero"
          (common/lease-ms {:lease-ms 0} 15000))))
+
+  (testing "remaining-ttl-ms is clamped at zero"
+    (is (= 500 (common/remaining-ttl-ms 1500 1000)))
+    (is (= 0 (common/remaining-ttl-ms 900 1000)))
+    (is (nil? (common/remaining-ttl-ms nil 1000))))
 
   (testing "status result never includes token and parses holder metadata"
     (is (= {:ok true

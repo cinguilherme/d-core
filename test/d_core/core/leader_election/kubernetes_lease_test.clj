@@ -57,10 +57,15 @@
 
 (deftest lease-name-normalization
   (let [name-a (k8s/lease-name "DCore_Leader" "Orders/Sync:Primary")
-        name-b (k8s/lease-name "DCore_Leader" "Orders/Sync:Primary")]
+        name-b (k8s/lease-name "DCore_Leader" "Orders/Sync:Primary")
+        valid-prefix (apply str (repeat 48 "a"))
+        valid-name (k8s/lease-name valid-prefix "x")]
     (is (= name-a name-b))
     (is (re-matches #"[a-z0-9-]+" name-a))
-    (is (<= (count name-a) 63))))
+    (is (<= (count name-a) 63))
+    (is (= 63 (count valid-name)))
+    (is (thrown? clojure.lang.ExceptionInfo
+                 (k8s/normalize-lease-name-prefix (apply str (repeat 49 "a")))))))
 
 (deftest acquire-on-missing-lease-creates
   (let [component (make-component)
@@ -106,23 +111,42 @@
 (deftest acquire-on-active-lease-returns-busy
   (let [component (make-component)
         lease-name (k8s/lease-name "dcore-leader-" "orders")]
-    (with-redefs [common/generate-token (fn [] "token-1")
-                  kube/request! (fn [_ _]
-                                  (lease-response {:name lease-name
-                                                   :owner-id "node-b"
-                                                   :token "token-b"
-                                                   :lease-transitions 4
-                                                   :renew-time-ms fixed-now-ms
-                                                   :acquire-time-ms (- fixed-now-ms 1000)
-                                                   :lease-duration-seconds 10}))]
-      (is (= {:ok true
-              :status :busy
-              :backend :kubernetes-lease
-              :election-id "orders"
-              :owner-id "node-b"
-              :fencing 4
-              :remaining-ttl-ms 10000}
-             (p/acquire! component "orders" {:lease-ms 5000})))))) 
+    (testing "active lease with token is busy"
+      (with-redefs [common/generate-token (fn [] "token-1")
+                    kube/request! (fn [_ _]
+                                    (lease-response {:name lease-name
+                                                     :owner-id "node-b"
+                                                     :token "token-b"
+                                                     :lease-transitions 4
+                                                     :renew-time-ms fixed-now-ms
+                                                     :acquire-time-ms (- fixed-now-ms 1000)
+                                                     :lease-duration-seconds 10}))]
+        (is (= {:ok true
+                :status :busy
+                :backend :kubernetes-lease
+                :election-id "orders"
+                :owner-id "node-b"
+                :fencing 4
+                :remaining-ttl-ms 10000}
+               (p/acquire! component "orders" {:lease-ms 5000})))))
+
+    (testing "active lease without token is still busy"
+      (with-redefs [common/generate-token (fn [] "token-1")
+                    kube/request! (fn [_ _]
+                                    (lease-response {:name lease-name
+                                                     :owner-id "node-b"
+                                                     :lease-transitions 4
+                                                     :renew-time-ms fixed-now-ms
+                                                     :acquire-time-ms (- fixed-now-ms 1000)
+                                                     :lease-duration-seconds 10}))]
+        (is (= {:ok true
+                :status :busy
+                :backend :kubernetes-lease
+                :election-id "orders"
+                :owner-id "node-b"
+                :fencing 4
+                :remaining-ttl-ms 10000}
+               (p/acquire! component "orders" {:lease-ms 5000})))))))
 
 (deftest acquire-on-expired-lease-replaces-and-increments-fencing
   (let [component (make-component)
@@ -134,7 +158,6 @@
                                   (case (:method request)
                                     :get (lease-response {:name lease-name
                                                          :owner-id "node-b"
-                                                         :token "token-b"
                                                          :resource-version "9"
                                                          :lease-transitions 3
                                                          :renew-time-ms (- fixed-now-ms 10000)
@@ -222,6 +245,23 @@
                 :status :lost
                 :backend :kubernetes-lease
                 :election-id "orders"}
+               (p/renew! component "orders" "token-1" nil)))))
+
+    (testing "renew returns lost when lease is active but token is missing"
+      (with-redefs [kube/request! (fn [_ _]
+                                    (lease-response {:name lease-name
+                                                     :owner-id "node-a"
+                                                     :lease-transitions 6
+                                                     :renew-time-ms fixed-now-ms
+                                                     :acquire-time-ms (- fixed-now-ms 7000)
+                                                     :lease-duration-seconds 2}))]
+        (is (= {:ok true
+                :status :lost
+                :backend :kubernetes-lease
+                :election-id "orders"
+                :owner-id "node-a"
+                :fencing 6
+                :remaining-ttl-ms 2000}
                (p/renew! component "orders" "token-1" nil)))))))
 
 (deftest resign-and-status-contracts
@@ -268,6 +308,23 @@
                 :remaining-ttl-ms 5000}
                (p/resign! component :orders "wrong-token" nil)))))
 
+    (testing "resign returns not-owner when lease is active but token is missing"
+      (with-redefs [kube/request! (fn [_ _]
+                                    (lease-response {:name lease-name
+                                                     :owner-id "node-b"
+                                                     :lease-transitions 8
+                                                     :renew-time-ms fixed-now-ms
+                                                     :acquire-time-ms (- fixed-now-ms 500)
+                                                     :lease-duration-seconds 5}))]
+        (is (= {:ok true
+                :status :not-owner
+                :backend :kubernetes-lease
+                :election-id "orders"
+                :owner-id "node-b"
+                :fencing 8
+                :remaining-ttl-ms 5000}
+               (p/resign! component :orders "wrong-token" nil)))))
+
     (testing "status returns held and never leaks token"
       (with-redefs [kube/request! (fn [_ _]
                                     (lease-response {:name lease-name
@@ -288,6 +345,23 @@
                  result))
           (is (false? (contains? result :token))))))
 
+    (testing "status returns held when lease is active without token"
+      (with-redefs [kube/request! (fn [_ _]
+                                    (lease-response {:name lease-name
+                                                     :owner-id "node-a"
+                                                     :lease-transitions 7
+                                                     :renew-time-ms fixed-now-ms
+                                                     :acquire-time-ms (- fixed-now-ms 500)
+                                                     :lease-duration-seconds 4}))]
+        (is (= {:ok true
+                :status :held
+                :backend :kubernetes-lease
+                :election-id "orders"
+                :owner-id "node-a"
+                :fencing 7
+                :remaining-ttl-ms 4000}
+               (p/status component :orders nil)))))
+
     (testing "status returns vacant for missing lease"
       (with-redefs [kube/request! (fn [_ _]
                                     (not-found-response lease-name))]
@@ -305,7 +379,6 @@
                              {:status 409 :body {:kind "Status" :reason "Conflict"}}
                              (lease-response {:name lease-name
                                               :owner-id "node-b"
-                                              :token "token-b"
                                               :lease-transitions 4
                                               :renew-time-ms fixed-now-ms
                                               :acquire-time-ms fixed-now-ms
@@ -336,7 +409,6 @@
                              {:status 409 :body {:kind "Status" :reason "Conflict"}}
                              (lease-response {:name lease-name
                                               :owner-id "node-b"
-                                              :token "token-b"
                                               :resource-version "4"
                                               :lease-transitions 6
                                               :renew-time-ms fixed-now-ms
@@ -419,4 +491,10 @@
 
   (testing "init-key validates required kubernetes-client"
     (is (thrown? clojure.lang.ExceptionInfo
-                 (ig/init-key :d-core.core.leader-election.kubernetes-lease/kubernetes-lease {})))))
+                 (ig/init-key :d-core.core.leader-election.kubernetes-lease/kubernetes-lease {}))))
+
+  (testing "init-key rejects overlong lease-name-prefix"
+    (is (thrown? clojure.lang.ExceptionInfo
+                 (ig/init-key :d-core.core.leader-election.kubernetes-lease/kubernetes-lease
+                              {:kubernetes-client {:namespace "workers"}
+                               :lease-name-prefix (apply str (repeat 49 "a"))})))))

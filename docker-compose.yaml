@@ -27,6 +27,14 @@ services:
     volumes:
       - valkey_data:/data
 
+  zookeeper:
+    image: zookeeper:3.9
+    ports:
+      - 2181:2181
+    volumes:
+      - zookeeper_data:/data
+      - zookeeper_datalog:/datalog
+
   tile38:
     image: tile38/tile38:latest
     ports:
@@ -289,6 +297,8 @@ volumes:
   postgres_data:
   redis_data:
   valkey_data:
+  zookeeper_data:
+  zookeeper_datalog:
   memcached_data:
   minio_data:
   typesense_data:

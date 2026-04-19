@@ -40,6 +40,7 @@ This page tracks what D-Core currently supports, what is planned, and what is ex
 - SQLite
 - Postgres
 - Kubernetes
+- ZooKeeper
 - Datomic
 - Typesense
 - HTTP (policy wrapper: rate-limit, bulkhead, circuit breaker, retries)
@@ -110,6 +111,7 @@ This page tracks what D-Core currently supports, what is planned, and what is ex
 - Valkey-backed leader election (`:d-core.core.leader-election.valkey/valkey`)
 - Postgres-backed leader election (`:d-core.core.leader-election.postgres/postgres`)
 - Kubernetes Lease-backed leader election (`:d-core.core.leader-election.kubernetes-lease/kubernetes-lease`)
+- ZooKeeper-backed leader election (`:d-core.core.leader-election.zookeeper/zookeeper`)
 
 ### Dev/test helpers
 

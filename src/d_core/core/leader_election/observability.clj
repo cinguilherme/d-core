@@ -3,7 +3,8 @@
             [d-core.core.leader-election.common :as common]
             [d-core.core.metrics.protocol :as metrics]
             [d-core.core.metrics.wrappers :as metrics-wrappers]
-            [duct.logger :as logger]))
+            [duct.logger :as logger])
+  (:import (java.util Collections WeakHashMap)))
 
 (def ^:private duration-buckets
   [0.001 0.005 0.01 0.025 0.05 0.1 0.25 0.5 1 2 5])
@@ -18,6 +19,9 @@
 
 (def ^:private safe-error-keys
   [:status :field :kind])
+
+(defonce ^:private instruments-cache
+  (Collections/synchronizedMap (WeakHashMap.)))
 
 (defn validate-metrics!
   [metrics]
@@ -43,13 +47,27 @@
                                            :help "Leader election errors"
                                            :labels [:backend :op :type]})})
 
+(defn- instrument-cache-key
+  [metrics-api]
+  (or (metrics/registry metrics-api) metrics-api))
+
+(defn- cached-instruments
+  [metrics-api]
+  (let [cache-key (instrument-cache-key metrics-api)]
+    (or (.get instruments-cache cache-key)
+        (locking instruments-cache
+          (or (.get instruments-cache cache-key)
+              (let [instruments (build-instruments metrics-api)]
+                (.put instruments-cache cache-key instruments)
+                instruments))))))
+
 (defn make-context
   [logger metrics]
   (let [validated-metrics (validate-metrics! metrics)]
     {:logger logger
      :metrics validated-metrics
      :instruments (when validated-metrics
-                    (build-instruments validated-metrics))}))
+                    (cached-instruments validated-metrics))}))
 
 (defn- safe-election-id
   [election-id]
@@ -112,6 +130,13 @@
                                                    (metrics-wrappers/labels->array backend op (error-type error)))))
     (record-duration! metrics-api instruments backend op duration)))
 
+(defn- safe-observe!
+  [f]
+  (try
+    (f)
+    (catch Throwable _
+      nil)))
+
 (defn observe-operation
   [observability backend op election-id thunk]
   (let [start (System/nanoTime)
@@ -119,13 +144,13 @@
     (try
       (let [result (thunk)
             duration (metrics-wrappers/duration-seconds start)]
-        (record-result! metrics instruments backend op result duration)
+        (safe-observe! #(record-result! metrics instruments backend op result duration))
         (when logger
-          (log-result! logger backend op result))
+          (safe-observe! #(log-result! logger backend op result)))
         result)
       (catch Throwable error
         (let [duration (metrics-wrappers/duration-seconds start)]
-          (record-error! metrics instruments backend op error duration)
+          (safe-observe! #(record-error! metrics instruments backend op error duration))
           (when logger
-            (log-error! logger backend op election-id error))
+            (safe-observe! #(log-error! logger backend op election-id error)))
           (throw error))))))

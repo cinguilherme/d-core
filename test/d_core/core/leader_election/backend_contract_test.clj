@@ -1,6 +1,7 @@
 (ns d-core.core.leader-election.backend-contract-test
   (:require [clojure.test :refer [deftest is testing]]
             [d-core.core.leader-election.common :as common]
+            [d-core.core.metrics.protocol :as metrics]
             [d-core.core.leader-election.observability :as obs]
             [d-core.core.leader-election.protocol :as p]
             [d-core.core.leader-election.redis-common :as redis-common]
@@ -8,6 +9,7 @@
             [d-core.core.leader-election.valkey :as valkey]
             [d-core.helpers.logger :as h-logger]
             [d-core.helpers.metrics :as h-metrics]
+            [duct.logger :as logger]
             [integrant.core :as ig]))
 
 (def ^:private fixed-now-ms
@@ -69,6 +71,39 @@
   [metric-calls]
   (get-in (first (h-metrics/find-calls metric-calls :observe! :leader_election_request_duration_seconds))
           [:metric :labels]))
+
+(definterface ILabelable
+  (labels [^"[Ljava.lang.String;" label-values]))
+
+(defn- make-labelable
+  [collector-name]
+  (reify ILabelable
+    (labels [_ label-values]
+      {:collector collector-name
+       :labels (vec label-values)})))
+
+(defn- make-throwing-metrics
+  [error]
+  (reify metrics/MetricsProtocol
+    (registry [_] nil)
+    (counter [_ opts]
+      (make-labelable (:name opts)))
+    (gauge [_ opts]
+      (make-labelable (:name opts)))
+    (histogram [_ opts]
+      (make-labelable (:name opts)))
+    (inc! [_ _]
+      (throw error))
+    (inc! [_ _ _]
+      (throw error))
+    (observe! [_ _ _]
+      (throw error))))
+
+(defn- make-throwing-logger
+  [error]
+  (reify logger/Logger
+    (-log [_ _ _ _ _ _ _ _]
+      (throw error))))
 
 (deftest acquire-contracts
   (doseq [{:keys [name backend make-component acquire-var]} backend-cases]
@@ -300,7 +335,58 @@
                             :type :exception
                             :error "boom"
                             :election-id "orders"}}]
-                   @logs))))))))
+                   @logs))))))
+
+  (doseq [{:keys [name backend make-component acquire-var status-var]} backend-cases]
+    (testing (str name " metrics failures do not change a successful acquire")
+      (let [metrics-boom (RuntimeException. "metrics boom")
+            component (make-component (obs/make-context nil (make-throwing-metrics metrics-boom)))]
+        (with-redefs-fn {#'d-core.core.leader-election.common/generate-token (fn [] "token-1")
+                         acquire-var (fn [& _]
+                                       ["acquired" "node-1" "7" "token-1" "15000"])}
+          (fn []
+            (is (= {:ok true
+                    :status :acquired
+                    :backend backend
+                    :election-id "orders"
+                    :owner-id "node-1"
+                    :fencing 7
+                    :remaining-ttl-ms 15000
+                    :token "token-1"}
+                   (p/acquire! component :orders nil)))))))
+
+    (testing (str name " status returns normally even with a throwing logger")
+      (let [logger-boom (RuntimeException. "logger boom")
+            component (make-component (obs/make-context (make-throwing-logger logger-boom) nil))]
+        (with-redefs-fn {status-var (fn [_ _]
+                                      ["held" "node-1" "7" "3000"])}
+          (fn []
+            (is (= {:ok true
+                    :status :held
+                    :backend backend
+                    :election-id "orders"
+                    :owner-id "node-1"
+                    :fencing 7
+                    :remaining-ttl-ms 3000}
+                   (p/status component :orders nil)))))))
+
+    (testing (str name " broken observability does not mask backend exceptions")
+      (let [backend-boom (RuntimeException. "backend boom")
+            metrics-boom (RuntimeException. "metrics boom")
+            logger-boom (RuntimeException. "logger boom")
+            component (make-component (obs/make-context (make-throwing-logger logger-boom)
+                                                        (make-throwing-metrics metrics-boom)))]
+        (with-redefs-fn {#'d-core.core.leader-election.common/generate-token (fn [] "token-1")
+                         acquire-var (fn [& _]
+                                       (throw backend-boom))}
+          (fn []
+            (try
+              (p/acquire! component :orders nil)
+              (is false "Expected backend exception")
+              (catch RuntimeException ex
+                (is (identical? backend-boom ex))
+                (is (= "backend boom" (.getMessage ex)))))))))))
+  )
 
 (deftest init-key-defaults-and-validation
   (doseq [{:keys [name init-key client-key]} backend-cases]

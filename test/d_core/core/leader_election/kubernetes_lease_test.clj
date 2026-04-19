@@ -19,6 +19,10 @@
   [ms]
   (.toString (Instant/ofEpochMilli ms)))
 
+(defn- keywordized-json
+  [value]
+  (json/parse-string (json/generate-string value) true))
+
 (defn- make-component
   ([] (make-component nil))
   ([observability]
@@ -48,21 +52,22 @@
          lease-duration-seconds 15
          lease-transitions 1}}]
   {:status 200
-   :body {:apiVersion "coordination.k8s.io/v1"
-          :kind "Lease"
-          :metadata (cond-> {:name name
-                             :namespace namespace
-                             :resourceVersion resource-version
-                             :annotations (merge {"dcore.io/leader-election-id" "orders"}
-                                                 annotations
-                                                 (when token
-                                                   {"dcore.io/leader-election-token" token}))}
-                      labels (assoc :labels labels))
-          :spec (cond-> {:leaseTransitions lease-transitions}
-                  owner-id (assoc :holderIdentity owner-id)
-                  acquire-time-ms (assoc :acquireTime (iso-ms acquire-time-ms))
-                  renew-time-ms (assoc :renewTime (iso-ms renew-time-ms))
-                  lease-duration-seconds (assoc :leaseDurationSeconds lease-duration-seconds))}})
+   :body (keywordized-json
+          {:apiVersion "coordination.k8s.io/v1"
+           :kind "Lease"
+           :metadata (cond-> {:name name
+                              :namespace namespace
+                              :resourceVersion resource-version
+                              :annotations (merge {"dcore.io/leader-election-id" "orders"}
+                                                  annotations
+                                                  (when token
+                                                    {"dcore.io/leader-election-token" token}))}
+                       labels (assoc :labels labels))
+           :spec (cond-> {:leaseTransitions lease-transitions}
+                   owner-id (assoc :holderIdentity owner-id)
+                   acquire-time-ms (assoc :acquireTime (iso-ms acquire-time-ms))
+                   renew-time-ms (assoc :renewTime (iso-ms renew-time-ms))
+                   lease-duration-seconds (assoc :leaseDurationSeconds lease-duration-seconds))})})
 
 (defn- not-found-response
   [lease-name]

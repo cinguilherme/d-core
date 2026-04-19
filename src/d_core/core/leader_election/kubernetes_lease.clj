@@ -18,6 +18,10 @@
 (def ^:private election-id-annotation
   "dcore.io/leader-election-id")
 
+(defn- annotation-keyword
+  [annotation-key]
+  (keyword annotation-key))
+
 (def ^:private max-lease-name-length
   63)
 
@@ -226,8 +230,12 @@
      :annotations annotations
      :raw-spec spec
      :holder-identity (parse-string-field (:holderIdentity spec) :spec.holderIdentity)
-     :token (parse-string-field (get annotations token-annotation) :metadata.annotations.token)
-     :election-id (parse-string-field (get annotations election-id-annotation) :metadata.annotations.election-id)
+     :token (parse-string-field (or (get annotations token-annotation)
+                                    (get annotations (annotation-keyword token-annotation)))
+                                :metadata.annotations.token)
+     :election-id (parse-string-field (or (get annotations election-id-annotation)
+                                          (get annotations (annotation-keyword election-id-annotation)))
+                                      :metadata.annotations.election-id)
      :acquire-time-ms (parse-rfc3339-ms (:acquireTime spec) :spec.acquireTime)
      :renew-time-ms (parse-rfc3339-ms (:renewTime spec) :spec.renewTime)
      :lease-duration-seconds (parse-positive-int (:leaseDurationSeconds spec) :spec.leaseDurationSeconds)
@@ -270,7 +278,11 @@
 
 (defn- build-annotations
   [lease token election-id]
-  (cond-> (dissoc (or (:annotations lease) {}) token-annotation election-id-annotation)
+  (cond-> (dissoc (or (:annotations lease) {})
+                  token-annotation
+                  election-id-annotation
+                  (annotation-keyword token-annotation)
+                  (annotation-keyword election-id-annotation))
     token (assoc token-annotation token)
     election-id (assoc election-id-annotation election-id)))
 

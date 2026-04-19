@@ -39,7 +39,15 @@
 
 (defn require-positive-long
   [value field]
-  (let [v (long value)]
+  (let [v (cond
+            (and (integer? value)
+                 (instance? Number value)) (long value)
+            :else nil)]
+    (when-not v
+      (throw (ex-info "Field must be a positive integer"
+                      {:type ::invalid-field
+                       :field field
+                       :value value})))
     (when (<= v 0)
       (throw (ex-info "Field must be greater than zero"
                       {:type ::invalid-field

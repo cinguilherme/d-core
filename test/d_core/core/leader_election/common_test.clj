@@ -46,10 +46,33 @@
   (testing "lease-ms uses default and validates positive values"
     (is (= 15000 (common/lease-ms nil 15000)))
     (is (= 500 (common/lease-ms {:lease-ms 500} 15000)))
+    (is (= 15000 (common/lease-ms {:lease-ms nil} 15000)))
     (is (thrown-with-msg?
          clojure.lang.ExceptionInfo
          #"greater than zero"
-         (common/lease-ms {:lease-ms 0} 15000))))
+         (common/lease-ms {:lease-ms 0} 15000)))
+    (doseq [invalid ["10" :x 1.5 -1]]
+      (let [ex (try
+                 (common/lease-ms {:lease-ms invalid} 15000)
+                 nil
+                 (catch clojure.lang.ExceptionInfo ex
+                   ex))]
+        (is (instance? clojure.lang.ExceptionInfo ex))
+        (is (= ::common/invalid-field (:type (ex-data ex))))
+        (is (= :lease-ms (:field (ex-data ex))))
+        (is (= invalid (:value (ex-data ex)))))))
+
+  (testing "require-positive-long rejects invalid default values with typed errors"
+    (doseq [invalid [nil "10" :x 1.5]]
+      (let [ex (try
+                 (common/require-positive-long invalid :default-lease-ms)
+                 nil
+                 (catch clojure.lang.ExceptionInfo ex
+                   ex))]
+        (is (instance? clojure.lang.ExceptionInfo ex))
+        (is (= ::common/invalid-field (:type (ex-data ex))))
+        (is (= :default-lease-ms (:field (ex-data ex))))
+        (is (= invalid (:value (ex-data ex)))))))
 
   (testing "remaining-ttl-ms is clamped at zero"
     (is (= 500 (common/remaining-ttl-ms 1500 1000)))

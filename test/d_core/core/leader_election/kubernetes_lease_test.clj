@@ -537,6 +537,20 @@
       (is (= "d-core.core.metrics.protocol/MetricsProtocol"
              (:expected (ex-data ex))))))
 
+  (testing "init-key validates default-lease-ms with typed errors"
+    (doseq [invalid [nil "10" :x 1.5]]
+      (let [ex (try
+                 (ig/init-key :d-core.core.leader-election.kubernetes-lease/kubernetes-lease
+                              {:kubernetes-client {:namespace "workers"}
+                               :default-lease-ms invalid})
+                 nil
+                 (catch clojure.lang.ExceptionInfo ex
+                   ex))]
+        (is (instance? clojure.lang.ExceptionInfo ex))
+        (is (= ::common/invalid-field (:type (ex-data ex))))
+        (is (= :default-lease-ms (:field (ex-data ex))))
+        (is (= invalid (:value (ex-data ex)))))))
+
   (testing "init-key rejects overlong lease-name-prefix"
     (is (thrown? clojure.lang.ExceptionInfo
                  (ig/init-key :d-core.core.leader-election.kubernetes-lease/kubernetes-lease

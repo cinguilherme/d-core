@@ -23,7 +23,7 @@ For `StorageProtocol`, the core operations are:
  - cache (in-memory + local-file + redis/valkey/memcached-backed)
   - storage (local-disk + minio/s3-style)
   - cryptography (simple AES + storage-backed key material)
-  - clients (redis/valkey, memcached, sqs, kafka, jetstream/nats, sqlite/postgres, datomic (Work in Progress), typesense, rabbitmq)
+  - clients (redis/valkey, memcached, sqs, kafka, jetstream/nats, sqlite/postgres, kubernetes, datomic (Work in Progress), typesense, rabbitmq)
   - http client (policy wrapper: rate-limit, bulkhead, circuit breaker, retries)
   - geocoding (protocol + Nominatim + cached wrapper)
   - routing and matrix (protocol + OSRM + Valhalla)
@@ -31,7 +31,7 @@ For `StorageProtocol`, the core operations are:
   - graphql server (Lacinia + optional GraphiQL + subscriptions)
   - metrics (Prometheus registry + scrape server)
   - rate limiting (sliding window, leaky bucket, redis fixed-window)
-  - leader election (lease-based Redis/Valkey/Postgres backends)
+  - leader election (lease-based Redis/Valkey/Postgres/Kubernetes Lease backends)
   - API keys (protocol + Postgres backend + auth/middleware integration)
   - cron tasks (Quartz-backed scheduler)
   - tracing helpers + Ring middleware
@@ -339,6 +339,20 @@ Postgres-backed leader election:
    :default-lease-ms 15000}}}
 ```
 
+Kubernetes Lease-backed leader election (in-cluster only):
+
+```edn
+{:system
+ {:d-core.core.clients.kubernetes/client
+  {:namespace "workers"}
+
+  :d-core.core.leader-election.kubernetes-lease/kubernetes-lease
+  {:kubernetes-client #ig/ref :d-core.core.clients.kubernetes/client
+   :owner-id "orders-worker-1"
+   :lease-name-prefix "dcore-leader-"
+   :default-lease-ms 15000}}}
+```
+
 Example usage:
 
 ```clj
@@ -354,6 +368,8 @@ Notes:
 - This capability is intentionally separate from Quartz. Quartz JDBC clustering remains scheduler-specific coordination.
 - Redis/Valkey are single-endpoint lease semantics with token-checked renew/release. They are not Redlock quorum coordination.
 - Postgres preserves the same lease contract through a table-backed design and works with the existing `postgres-client`.
+- Kubernetes Lease is in-cluster only, uses the Kubernetes API plus ServiceAccount auth, and rounds leases to whole seconds.
+- Kubernetes Lease is a best-effort backend. Its `:fencing` value maps to Lease transitions and should not be treated as strong fencing for external side effects.
 - v1 is low-level only: no auto-renew helper or “run while leader” runtime is included.
 
 See [`docs/leader_election.md`](./docs/leader_election.md) for the full contract, config options, and backend notes.

@@ -39,6 +39,7 @@ This page tracks what D-Core currently supports, what is planned, and what is ex
 - Memcached
 - SQLite
 - Postgres
+- Kubernetes
 - Datomic
 - Typesense
 - HTTP (policy wrapper: rate-limit, bulkhead, circuit breaker, retries)
@@ -101,6 +102,14 @@ This page tracks what D-Core currently supports, what is planned, and what is ex
 ### Scheduling
 
 - Cron tasks (Quartz-backed scheduler component)
+
+### Coordination
+
+- Leader election protocol (`d-core.core.leader-election.protocol/LeaderElectionProtocol`)
+- Redis-backed leader election (`:d-core.core.leader-election.redis/redis`)
+- Valkey-backed leader election (`:d-core.core.leader-election.valkey/valkey`)
+- Postgres-backed leader election (`:d-core.core.leader-election.postgres/postgres`)
+- Kubernetes Lease-backed leader election (`:d-core.core.leader-election.kubernetes-lease/kubernetes-lease`)
 
 ### Dev/test helpers
 

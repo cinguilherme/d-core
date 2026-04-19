@@ -1,6 +1,7 @@
 (ns d-core.core.metrics.prometheus-test
   (:require [clojure.string :as str]
             [clojure.test :refer [deftest is testing]]
+            [d-core.core.leader-election.observability :as obs]
             [integrant.core :as ig]
             [d-core.core.metrics.protocol :as p]
             [d-core.core.metrics.prometheus :as prom])
@@ -57,3 +58,14 @@
       (is (instance? HTTPServer (:server server)))
       (is (= "0.0.0.0" (:host server)))
       (ig/halt-key! :d-core.core.metrics.prometheus/server server))))
+
+(deftest leader-election-observability-reuses-collectors-per-registry
+  (testing "make-context reuses leader-election instruments for the same metrics registry"
+    (let [reg (ig/init-key :d-core.core.metrics.prometheus/registry {:jvm-metrics? false})
+          metrics (ig/init-key :d-core.core.metrics.prometheus/metrics {:registry reg})
+          ctx-1 (obs/make-context nil metrics)
+          ctx-2 (obs/make-context nil metrics)]
+      (is (identical? (:instruments ctx-1) (:instruments ctx-2)))
+      (is (some #{"leader_election_requests"} (registry-names reg)))
+      (is (some #{"leader_election_request_duration_seconds"} (registry-names reg)))
+      (is (some #{"leader_election_errors"} (registry-names reg))))))

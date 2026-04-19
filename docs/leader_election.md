@@ -59,6 +59,8 @@ Portable result fields:
   {:redis-client #ig/ref :d-core.core.clients.redis/client
    :owner-id "orders-worker-1"
    :prefix "dcore:leader-election:"
+   :logger #ig/ref :duct/logger
+   :metrics #ig/ref :d-core.core.metrics.prometheus/metrics
    :default-lease-ms 15000}}}
 ```
 
@@ -115,6 +117,8 @@ Component options:
 - `:owner-id` defaults to `<hostname>:<uuid>`; production systems should set this explicitly
 - `:default-lease-ms` defaults to `15000`
 - `:clock` may be a `java.time.Clock`, a `d-core.libs.time/clock` component, a clock opts map, or a function returning epoch ms / `Instant`
+- `:logger` is optional and enables structured lifecycle and failure logs
+- `:metrics` is optional and must implement `d-core.core.metrics.protocol/MetricsProtocol`
 - Redis/Valkey only: `:prefix` defaults to `"dcore:leader-election:"`
 - Postgres only: `:table-name` defaults to `"dcore_leader_elections"`
 - Postgres only: `:bootstrap-schema?` defaults to `false`
@@ -125,6 +129,33 @@ Component options:
 - Kubernetes client only: `:token-file`, `:ca-cert-file`, and `:namespace-file` default to the mounted ServiceAccount paths under `/var/run/secrets/kubernetes.io/serviceaccount/`
 - Kubernetes client only: `:namespace` may override the mounted namespace file
 - Kubernetes client only: `:request-timeout-ms` defaults to `5000`
+
+## Observability
+
+All leader-election backends accept optional `:logger` and `:metrics`
+dependencies and emit observability at the public protocol boundary.
+
+Metrics:
+- `leader_election_requests_total`
+  Labels: `[:backend :op :status]`
+- `leader_election_request_duration_seconds`
+  Labels: `[:backend :op]`
+- `leader_election_errors_total`
+  Labels: `[:backend :op :type]`
+
+Logging:
+- `:acquired` and `:released` log at `:info`
+- `:lost` logs at `:warn`
+- `:busy`, `:renewed`, and `:not-owner` log at `:debug`
+- `status` calls record metrics only; routine `:held` / `:vacant` results are not logged
+- backend failures log at `:error`
+
+Observability rules:
+- logs include `:backend`, `:op`, `:status`, `:election-id`, and holder metadata when known
+- logs never include the opaque leader token
+- metrics use low-cardinality labels only; they do not label by `election-id`, `owner-id`, lease name, or namespace
+- Kubernetes Lease auth/RBAC/provider failures are observed at the public `acquire!` / `renew!` / `resign!` / `status` boundary
+- generic Kubernetes client request-level instrumentation is not included in this version by design
 
 ## Kubernetes RBAC
 

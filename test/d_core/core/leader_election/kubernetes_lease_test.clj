@@ -4,7 +4,11 @@
             [d-core.core.clients.kubernetes.client :as kube]
             [d-core.core.leader-election.common :as common]
             [d-core.core.leader-election.kubernetes-lease :as k8s]
+            [d-core.core.leader-election.observability :as obs]
             [d-core.core.leader-election.protocol :as p]
+            [d-core.core.metrics.wrappers :as metrics-wrappers]
+            [d-core.helpers.logger :as h-logger]
+            [d-core.helpers.metrics :as h-metrics]
             [integrant.core :as ig])
   (:import (java.time Instant)))
 
@@ -16,13 +20,25 @@
   (.toString (Instant/ofEpochMilli ms)))
 
 (defn- make-component
-  []
+  ([] (make-component nil))
+  ([observability]
   (k8s/->KubernetesLeaseLeaderElection {:namespace "workers"}
                                        "node-a"
                                        "workers"
                                        (k8s/normalize-lease-name-prefix nil)
                                        15000
-                                       (constantly fixed-now-ms)))
+                                       (constantly fixed-now-ms)
+                                       observability)))
+
+(defn- make-observed-component
+  []
+  (let [{:keys [logger logs]} (h-logger/make-test-logger)
+        {:keys [metrics calls]} (h-metrics/make-test-metrics)]
+    {:component (make-component (obs/make-context logger metrics))
+     :logs logs
+     :metric-calls calls
+     :logger logger
+     :metrics metrics}))
 
 (defn- lease-response
   [{:keys [name namespace owner-id token renew-time-ms acquire-time-ms lease-duration-seconds lease-transitions resource-version labels annotations]
@@ -490,12 +506,159 @@
       (is (= 15000 (:default-lease-ms component)))
       (is (= "dcore-leader-" (:lease-name-prefix component)))))
 
+  (testing "init-key accepts logger and metrics"
+    (let [{:keys [logger]} (h-logger/make-test-logger)
+          {:keys [metrics]} (h-metrics/make-test-metrics)
+          component (ig/init-key :d-core.core.leader-election.kubernetes-lease/kubernetes-lease
+                                 {:kubernetes-client {:namespace "workers"}
+                                  :logger logger
+                                  :metrics metrics})]
+      (is (= logger (get-in component [:observability :logger])))
+      (is (= metrics (get-in component [:observability :metrics])))))
+
   (testing "init-key validates required kubernetes-client"
     (is (thrown? clojure.lang.ExceptionInfo
                  (ig/init-key :d-core.core.leader-election.kubernetes-lease/kubernetes-lease {}))))
+
+  (testing "init-key validates metrics dependency"
+    (let [ex (try
+               (ig/init-key :d-core.core.leader-election.kubernetes-lease/kubernetes-lease
+                            {:kubernetes-client {:namespace "workers"}
+                             :metrics {}})
+               nil
+               (catch clojure.lang.ExceptionInfo ex
+                 ex))]
+      (is (instance? clojure.lang.ExceptionInfo ex))
+      (is (= "d-core.core.metrics.protocol/MetricsProtocol"
+             (:expected (ex-data ex))))))
 
   (testing "init-key rejects overlong lease-name-prefix"
     (is (thrown? clojure.lang.ExceptionInfo
                  (ig/init-key :d-core.core.leader-election.kubernetes-lease/kubernetes-lease
                               {:kubernetes-client {:namespace "workers"}
-                               :lease-name-prefix (apply str (repeat 51 "a"))})))))
+                               :lease-name-prefix (apply str (repeat 52 "a"))})))))
+
+(deftest observability-contracts
+  (let [lease-name (k8s/lease-name "dcore-leader-" "orders")]
+    (testing "lifecycle outcomes emit metrics and only meaningful logs"
+      (let [{:keys [component logs metric-calls]} (make-observed-component)
+            responses (atom [(not-found-response lease-name)
+                             (lease-response {:name lease-name
+                                              :owner-id "node-a"
+                                              :token "token-1"
+                                              :resource-version "1"
+                                              :lease-transitions 1
+                                              :renew-time-ms fixed-now-ms
+                                              :acquire-time-ms fixed-now-ms
+                                              :lease-duration-seconds 5})
+                             (lease-response {:name lease-name
+                                              :owner-id "node-b"
+                                              :resource-version "2"
+                                              :lease-transitions 4
+                                              :renew-time-ms fixed-now-ms
+                                              :acquire-time-ms (- fixed-now-ms 1000)
+                                              :lease-duration-seconds 10})
+                             (lease-response {:name lease-name
+                                              :owner-id "node-a"
+                                              :token "token-1"
+                                              :resource-version "3"
+                                              :lease-transitions 5
+                                              :renew-time-ms fixed-now-ms
+                                              :acquire-time-ms (- fixed-now-ms 1000)
+                                              :lease-duration-seconds 20})
+                             (lease-response {:name lease-name
+                                              :owner-id "node-a"
+                                              :token "token-1"
+                                              :resource-version "4"
+                                              :lease-transitions 5
+                                              :renew-time-ms fixed-now-ms
+                                              :acquire-time-ms (- fixed-now-ms 1000)
+                                              :lease-duration-seconds 9})
+                             (lease-response {:name lease-name
+                                              :owner-id "node-b"
+                                              :token "token-b"
+                                              :resource-version "5"
+                                              :lease-transitions 6
+                                              :renew-time-ms fixed-now-ms
+                                              :acquire-time-ms (- fixed-now-ms 1000)
+                                              :lease-duration-seconds 8})
+                             (lease-response {:name lease-name
+                                              :owner-id "node-a"
+                                              :token "token-1"
+                                              :resource-version "6"
+                                              :lease-transitions 7
+                                              :renew-time-ms fixed-now-ms
+                                              :acquire-time-ms (- fixed-now-ms 500)
+                                              :lease-duration-seconds 6})
+                             (lease-response {:name lease-name
+                                              :resource-version "7"
+                                              :lease-transitions 7
+                                              :lease-duration-seconds nil})
+                             (lease-response {:name lease-name
+                                              :owner-id "node-b"
+                                              :token "token-b"
+                                              :lease-transitions 8
+                                              :renew-time-ms fixed-now-ms
+                                              :acquire-time-ms (- fixed-now-ms 500)
+                                              :lease-duration-seconds 5})
+                             (lease-response {:name lease-name
+                                              :owner-id "node-a"
+                                              :lease-transitions 7
+                                              :renew-time-ms fixed-now-ms
+                                              :acquire-time-ms (- fixed-now-ms 500)
+                                              :lease-duration-seconds 4})
+                             (not-found-response lease-name)])]
+        (with-redefs [common/generate-token (fn [] "token-1")
+                      kube/request! (fn [_ request]
+                                      (let [response (first @responses)]
+                                        (swap! responses rest)
+                                        response))]
+          (is (= :acquired (:status (p/acquire! component :orders {:lease-ms 5000}))))
+          (is (= :busy (:status (p/acquire! component :orders {:lease-ms 5000}))))
+          (is (= :renewed (:status (p/renew! component :orders "token-1" {:lease-ms 9000}))))
+          (is (= :lost (:status (p/renew! component :orders "wrong-token" nil))))
+          (is (= :released (:status (p/resign! component :orders "token-1" nil))))
+          (is (= :not-owner (:status (p/resign! component :orders "wrong-token" nil))))
+          (is (= :held (:status (p/status component :orders nil))))
+          (is (= :vacant (:status (p/status component :orders nil))))
+          (is (= [["info" "acquired"]
+                  ["debug" "busy"]
+                  ["debug" "renewed"]
+                  ["warn" "lost"]
+                  ["info" "released"]
+                  ["debug" "not-owner"]]
+                 (mapv (fn [{:keys [level data]}]
+                         [(name level) (name (:status data))])
+                       @logs)))
+          (is (= #{"acquired" "busy" "renewed" "lost" "released" "not-owner" "held" "vacant"}
+                 (set (map last
+                           (map :labels
+                                (map :metric
+                                     (h-metrics/find-calls metric-calls :inc! :leader_election_requests_total)))))))
+          (is (= 8 (count (h-metrics/find-calls metric-calls :observe! :leader_election_request_duration_seconds))))
+          (is (not-any? #(contains? #{:held :vacant} (get-in % [:data :status])) @logs)))))
+
+    (testing "forbidden errors are logged and counted once at the public operation boundary"
+      (let [{:keys [component logs metric-calls]} (make-observed-component)]
+        (with-redefs [kube/request! (fn [_ _]
+                                      {:status 403
+                                       :body {:kind "Status"
+                                              :reason "Forbidden"}})]
+          (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                                #"not authorized"
+                                (p/status component :orders nil)))
+          (is (= ["kubernetes-lease" "status" (metrics-wrappers/label-value ::k8s/forbidden)]
+                 (get-in (first (h-metrics/find-calls metric-calls :inc! :leader_election_errors_total))
+                         [:metric :labels])))
+          (is (= ["kubernetes-lease" "status"]
+                 (get-in (first (h-metrics/find-calls metric-calls :observe! :leader_election_request_duration_seconds))
+                         [:metric :labels])))
+          (is (= [{:level :error
+                   :event ::obs/operation-failed
+                   :data {:backend :kubernetes-lease
+                          :op :status
+                          :type ::k8s/forbidden
+                          :error "Kubernetes Lease request was not authorized"
+                          :status 403
+                          :election-id "orders"}}]
+                 @logs)))))))

@@ -320,6 +320,8 @@ Leader election (lease-based singleton coordination):
   {:redis-client #ig/ref :d-core.core.clients.redis/client
    :owner-id "orders-worker-1"
    :prefix "dcore:leader-election:"
+   :logger #ig/ref :duct/logger
+   :metrics #ig/ref :d-core.core.metrics.prometheus/metrics
    :default-lease-ms 15000}}}
 ```
 
@@ -370,6 +372,9 @@ Notes:
 - Postgres preserves the same lease contract through a table-backed design and works with the existing `postgres-client`.
 - Kubernetes Lease is in-cluster only, uses the Kubernetes API plus ServiceAccount auth, and rounds leases to whole seconds.
 - Kubernetes Lease is a best-effort backend. Its `:fencing` value maps to Lease transitions and should not be treated as strong fencing for external side effects.
+- Leader-election backends accept optional `:logger` and `:metrics` dependencies and emit backend-level lifecycle/failure observability.
+- Built-in metrics are `leader_election_requests_total`, `leader_election_request_duration_seconds`, and `leader_election_errors_total`; logs never include the opaque leader token.
+- Generic Kubernetes client request-level instrumentation is intentionally deferred; observability is emitted at the public leader-election operation boundary instead.
 - v1 is low-level only: no auto-renew helper or “run while leader” runtime is included.
 
 See [`docs/leader_election.md`](./docs/leader_election.md) for the full contract, config options, and backend notes.

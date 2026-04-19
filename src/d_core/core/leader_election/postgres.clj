@@ -3,6 +3,7 @@
             [next.jdbc :as jdbc]
             [next.jdbc.result-set :as rs]
             [d-core.core.leader-election.common :as common]
+            [d-core.core.leader-election.observability :as obs]
             [d-core.core.leader-election.protocol :as p]))
 
 (def default-table-name
@@ -135,66 +136,74 @@
               election-id
               token]))
 
-(defrecord PostgresLeaderElection [datasource owner-id table-ident default-lease-ms clock]
+(defrecord PostgresLeaderElection [datasource owner-id table-ident default-lease-ms clock observability]
   p/LeaderElectionProtocol
   (acquire! [_ election-id opts]
-    (let [election-id (common/normalize-election-id election-id)
-          token (common/generate-token)
-          lease-ms (common/lease-ms opts default-lease-ms)]
-      (if-let [row (try-acquire-row! datasource table-ident election-id owner-id token lease-ms)]
-        (common/acquire-result :postgres election-id
-                               ["acquired"
-                                (:owner_id row)
-                                (str (:fencing row))
-                                (:token row)
-                                (str (:remaining_ttl_ms row))])
-        (if-let [holder (select-active-holder datasource table-ident election-id)]
-          (common/acquire-result :postgres election-id
-                                 ["busy"
-                                  (:owner_id holder)
-                                  (str (:fencing holder))
-                                  ""
-                                  (str (:remaining_ttl_ms holder))])
-          (common/acquire-result :postgres election-id ["busy"])))))
+    (obs/observe-operation observability :postgres :acquire election-id
+                           (fn []
+                             (let [election-id (common/normalize-election-id election-id)
+                                   token (common/generate-token)
+                                   lease-ms (common/lease-ms opts default-lease-ms)]
+                               (if-let [row (try-acquire-row! datasource table-ident election-id owner-id token lease-ms)]
+                                 (common/acquire-result :postgres election-id
+                                                        ["acquired"
+                                                         (:owner_id row)
+                                                         (str (:fencing row))
+                                                         (:token row)
+                                                         (str (:remaining_ttl_ms row))])
+                                 (if-let [holder (select-active-holder datasource table-ident election-id)]
+                                   (common/acquire-result :postgres election-id
+                                                          ["busy"
+                                                           (:owner_id holder)
+                                                           (str (:fencing holder))
+                                                           ""
+                                                           (str (:remaining_ttl_ms holder))])
+                                   (common/acquire-result :postgres election-id ["busy"])))))))
 
   (renew! [_ election-id token opts]
-    (let [election-id (common/normalize-election-id election-id)
-          token (common/normalize-token token)
-          lease-ms (common/lease-ms opts default-lease-ms)]
-      (if-let [row (try-renew-row! datasource table-ident election-id token lease-ms)]
-        (common/renew-result :postgres election-id
-                             ["renewed"
-                              (:owner_id row)
-                              (str (:fencing row))
-                              (:token row)
-                              (str (:remaining_ttl_ms row))])
-        (if-let [holder (select-active-holder datasource table-ident election-id)]
-          (common/renew-result :postgres election-id
-                               (holder-row->response :lost holder))
-          (common/renew-result :postgres election-id ["lost"])))))
+    (obs/observe-operation observability :postgres :renew election-id
+                           (fn []
+                             (let [election-id (common/normalize-election-id election-id)
+                                   token (common/normalize-token token)
+                                   lease-ms (common/lease-ms opts default-lease-ms)]
+                               (if-let [row (try-renew-row! datasource table-ident election-id token lease-ms)]
+                                 (common/renew-result :postgres election-id
+                                                      ["renewed"
+                                                       (:owner_id row)
+                                                       (str (:fencing row))
+                                                       (:token row)
+                                                       (str (:remaining_ttl_ms row))])
+                                 (if-let [holder (select-active-holder datasource table-ident election-id)]
+                                   (common/renew-result :postgres election-id
+                                                        (holder-row->response :lost holder))
+                                   (common/renew-result :postgres election-id ["lost"])))))))
 
   (resign! [_ election-id token _opts]
-    (let [election-id (common/normalize-election-id election-id)
-          token (common/normalize-token token)]
-      (if-let [row (try-resign-row! datasource table-ident election-id token)]
-        (common/resign-result :postgres election-id
-                              ["released"
-                               owner-id
-                               (str (:fencing row))])
-        (if-let [holder (select-active-holder datasource table-ident election-id)]
-          (common/resign-result :postgres election-id
-                                (holder-row->response :not-owner holder))
-          (common/resign-result :postgres election-id ["not-owner"])))))
+    (obs/observe-operation observability :postgres :resign election-id
+                           (fn []
+                             (let [election-id (common/normalize-election-id election-id)
+                                   token (common/normalize-token token)]
+                               (if-let [row (try-resign-row! datasource table-ident election-id token)]
+                                 (common/resign-result :postgres election-id
+                                                       ["released"
+                                                        owner-id
+                                                        (str (:fencing row))])
+                                 (if-let [holder (select-active-holder datasource table-ident election-id)]
+                                   (common/resign-result :postgres election-id
+                                                         (holder-row->response :not-owner holder))
+                                   (common/resign-result :postgres election-id ["not-owner"])))))))
 
   (status [_ election-id _opts]
-    (let [election-id (common/normalize-election-id election-id)]
-      (if-let [holder (select-active-holder datasource table-ident election-id)]
-        (common/status-result :postgres election-id
-                              (holder-row->response :held holder))
-        (common/status-result :postgres election-id ["vacant"])))))
+    (obs/observe-operation observability :postgres :status election-id
+                           (fn []
+                             (let [election-id (common/normalize-election-id election-id)]
+                               (if-let [holder (select-active-holder datasource table-ident election-id)]
+                                 (common/status-result :postgres election-id
+                                                       (holder-row->response :held holder))
+                                 (common/status-result :postgres election-id ["vacant"])))))))
 
 (defmethod ig/init-key :d-core.core.leader-election.postgres/postgres
-  [_ {:keys [postgres-client owner-id default-lease-ms clock bootstrap-schema? table-name]
+  [_ {:keys [postgres-client owner-id default-lease-ms clock bootstrap-schema? table-name logger metrics]
       :or {default-lease-ms common/default-lease-ms
            bootstrap-schema? false
            table-name default-table-name}}]
@@ -209,4 +218,5 @@
                               (common/normalize-owner-id owner-id)
                               table-ident
                               (common/require-positive-long default-lease-ms :default-lease-ms)
-                              (common/normalize-clock clock))))
+                              (common/normalize-clock clock)
+                              (obs/make-context logger metrics))))

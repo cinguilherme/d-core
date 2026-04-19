@@ -1,6 +1,7 @@
 (ns d-core.core.leader-election.redis
   (:require [d-core.core.clients.redis.utils :as redis-utils]
             [d-core.core.leader-election.common :as common]
+            [d-core.core.leader-election.observability :as obs]
             [d-core.core.leader-election.redis-common :as redis-common]
             [d-core.core.leader-election.protocol :as p]
             [integrant.core :as ig]
@@ -43,50 +44,58 @@
                       1
                       lease-key)))
 
-(defrecord RedisLeaderElection [redis-client owner-id prefix default-lease-ms clock]
+(defrecord RedisLeaderElection [redis-client owner-id prefix default-lease-ms clock observability]
   p/LeaderElectionProtocol
   (acquire! [_ election-id opts]
-    (let [election-id (common/normalize-election-id election-id)
-          token (common/generate-token)
-          now-ms (common/now-ms clock)
-          lease-ms (common/lease-ms opts default-lease-ms)
-          response (eval-acquire! redis-client
-                                  (redis-common/lease-key prefix election-id)
-                                  (redis-common/fencing-key prefix election-id)
-                                  owner-id
-                                  token
-                                  now-ms
-                                  lease-ms)]
-      (common/acquire-result :redis election-id response)))
+    (obs/observe-operation observability :redis :acquire election-id
+                           (fn []
+                             (let [election-id (common/normalize-election-id election-id)
+                                   token (common/generate-token)
+                                   now-ms (common/now-ms clock)
+                                   lease-ms (common/lease-ms opts default-lease-ms)
+                                   response (eval-acquire! redis-client
+                                                           (redis-common/lease-key prefix election-id)
+                                                           (redis-common/fencing-key prefix election-id)
+                                                           owner-id
+                                                           token
+                                                           now-ms
+                                                           lease-ms)]
+                               (common/acquire-result :redis election-id response)))))
 
   (renew! [_ election-id token opts]
-    (let [election-id (common/normalize-election-id election-id)
-          token (common/normalize-token token)
-          now-ms (common/now-ms clock)
-          lease-ms (common/lease-ms opts default-lease-ms)
-          response (eval-renew! redis-client
-                                (redis-common/lease-key prefix election-id)
-                                token
-                                now-ms
-                                lease-ms)]
-      (common/renew-result :redis election-id response)))
+    (obs/observe-operation observability :redis :renew election-id
+                           (fn []
+                             (let [election-id (common/normalize-election-id election-id)
+                                   token (common/normalize-token token)
+                                   now-ms (common/now-ms clock)
+                                   lease-ms (common/lease-ms opts default-lease-ms)
+                                   response (eval-renew! redis-client
+                                                         (redis-common/lease-key prefix election-id)
+                                                         token
+                                                         now-ms
+                                                         lease-ms)]
+                               (common/renew-result :redis election-id response)))))
 
   (resign! [_ election-id token _opts]
-    (let [election-id (common/normalize-election-id election-id)
-          token (common/normalize-token token)
-          response (eval-resign! redis-client
-                                 (redis-common/lease-key prefix election-id)
-                                 token)]
-      (common/resign-result :redis election-id response)))
+    (obs/observe-operation observability :redis :resign election-id
+                           (fn []
+                             (let [election-id (common/normalize-election-id election-id)
+                                   token (common/normalize-token token)
+                                   response (eval-resign! redis-client
+                                                          (redis-common/lease-key prefix election-id)
+                                                          token)]
+                               (common/resign-result :redis election-id response)))))
 
   (status [_ election-id _opts]
-    (let [election-id (common/normalize-election-id election-id)
-          response (eval-status redis-client
-                                (redis-common/lease-key prefix election-id))]
-      (common/status-result :redis election-id response))))
+    (obs/observe-operation observability :redis :status election-id
+                           (fn []
+                             (let [election-id (common/normalize-election-id election-id)
+                                   response (eval-status redis-client
+                                                         (redis-common/lease-key prefix election-id))]
+                               (common/status-result :redis election-id response))))))
 
 (defmethod ig/init-key :d-core.core.leader-election.redis/redis
-  [_ {:keys [redis-client owner-id prefix default-lease-ms clock]
+  [_ {:keys [redis-client owner-id prefix default-lease-ms clock logger metrics]
       :or {prefix redis-common/default-prefix
            default-lease-ms common/default-lease-ms}}]
   (when-not redis-client
@@ -96,4 +105,5 @@
                          (common/normalize-owner-id owner-id)
                          (redis-common/normalize-prefix prefix)
                          (common/require-positive-long default-lease-ms :default-lease-ms)
-                         (common/normalize-clock clock)))
+                         (common/normalize-clock clock)
+                         (obs/make-context logger metrics)))

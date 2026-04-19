@@ -3,6 +3,7 @@
             [clojure.string :as str]
             [d-core.core.clients.kubernetes.client :as kube]
             [d-core.core.leader-election.common :as common]
+            [d-core.core.leader-election.observability :as obs]
             [d-core.core.leader-election.protocol :as p]
             [integrant.core :as ig])
   (:import (java.security MessageDigest)
@@ -442,124 +443,132 @@
     (common/resign-result :kubernetes-lease election-id (holder-response :not-owner lease now-ms))
     (common/resign-result :kubernetes-lease election-id ["not-owner"])))
 
-(defrecord KubernetesLeaseLeaderElection [kubernetes-client owner-id namespace lease-name-prefix default-lease-ms clock]
+(defrecord KubernetesLeaseLeaderElection [kubernetes-client owner-id namespace lease-name-prefix default-lease-ms clock observability]
   p/LeaderElectionProtocol
   (acquire! [_ election-id opts]
-    (let [election-id (common/normalize-election-id election-id)
-          lease-name (lease-name lease-name-prefix election-id)
-          lease-ms (common/lease-ms opts default-lease-ms)
-          now-ms (common/now-ms clock)
-          token (common/generate-token)
-          current (get-lease kubernetes-client namespace lease-name)]
-      (cond
-        (nil? current)
-        (let [created (create-lease! kubernetes-client namespace
-                                     (create-lease-body namespace lease-name owner-id token election-id now-ms lease-ms))]
-          (if (= ::conflict created)
-            (if-let [lease (get-lease kubernetes-client namespace lease-name)]
-              (acquire-busy-result election-id lease now-ms)
-              (common/acquire-result :kubernetes-lease election-id ["busy"]))
-            (common/acquire-result :kubernetes-lease election-id
-                                   ["acquired"
-                                    (:holder-identity created)
-                                    (some-> (:lease-transitions created) str)
-                                    token
-                                    (some-> (remaining-ttl-ms created now-ms) str)])))
+    (obs/observe-operation observability :kubernetes-lease :acquire election-id
+                           (fn []
+                             (let [election-id (common/normalize-election-id election-id)
+                                   lease-name (lease-name lease-name-prefix election-id)
+                                   lease-ms (common/lease-ms opts default-lease-ms)
+                                   now-ms (common/now-ms clock)
+                                   token (common/generate-token)
+                                   current (get-lease kubernetes-client namespace lease-name)]
+                               (cond
+                                 (nil? current)
+                                 (let [created (create-lease! kubernetes-client namespace
+                                                              (create-lease-body namespace lease-name owner-id token election-id now-ms lease-ms))]
+                                   (if (= ::conflict created)
+                                     (if-let [lease (get-lease kubernetes-client namespace lease-name)]
+                                       (acquire-busy-result election-id lease now-ms)
+                                       (common/acquire-result :kubernetes-lease election-id ["busy"]))
+                                     (common/acquire-result :kubernetes-lease election-id
+                                                            ["acquired"
+                                                             (:holder-identity created)
+                                                             (some-> (:lease-transitions created) str)
+                                                             token
+                                                             (some-> (remaining-ttl-ms created now-ms) str)])))
 
-        (lease-active? current now-ms)
-        (acquire-busy-result election-id current now-ms)
+                                 (lease-active? current now-ms)
+                                 (acquire-busy-result election-id current now-ms)
 
-        :else
-        (let [updated (replace-lease! kubernetes-client namespace lease-name
-                                      (acquire-lease-body namespace lease-name current owner-id token election-id now-ms lease-ms))]
-          (if (= ::conflict updated)
-            (if-let [lease (get-lease kubernetes-client namespace lease-name)]
-              (if (lease-active? lease now-ms)
-                (acquire-busy-result election-id lease now-ms)
-                (common/acquire-result :kubernetes-lease election-id ["busy"]))
-              (common/acquire-result :kubernetes-lease election-id ["busy"]))
-            (common/acquire-result :kubernetes-lease election-id
-                                   ["acquired"
-                                    (:holder-identity updated)
-                                    (some-> (:lease-transitions updated) str)
-                                    token
-                                    (some-> (remaining-ttl-ms updated now-ms) str)]))))))
+                                 :else
+                                 (let [updated (replace-lease! kubernetes-client namespace lease-name
+                                                               (acquire-lease-body namespace lease-name current owner-id token election-id now-ms lease-ms))]
+                                   (if (= ::conflict updated)
+                                     (if-let [lease (get-lease kubernetes-client namespace lease-name)]
+                                       (if (lease-active? lease now-ms)
+                                         (acquire-busy-result election-id lease now-ms)
+                                         (common/acquire-result :kubernetes-lease election-id ["busy"]))
+                                       (common/acquire-result :kubernetes-lease election-id ["busy"]))
+                                     (common/acquire-result :kubernetes-lease election-id
+                                                            ["acquired"
+                                                             (:holder-identity updated)
+                                                             (some-> (:lease-transitions updated) str)
+                                                             token
+                                                             (some-> (remaining-ttl-ms updated now-ms) str)]))))))))
 
   (renew! [_ election-id token opts]
-    (let [election-id (common/normalize-election-id election-id)
-          token (common/normalize-token token)
-          lease-name (lease-name lease-name-prefix election-id)
-          lease-ms (common/lease-ms opts default-lease-ms)
-          now-ms (common/now-ms clock)
-          current (get-lease kubernetes-client namespace lease-name)]
-      (if (or (nil? current)
-              (not (lease-owned-by-token? current token now-ms)))
-        (renew-lost-result election-id (when (lease-active? current now-ms) current) now-ms)
-        (let [updated (replace-lease! kubernetes-client namespace lease-name
-                                      (renew-lease-body namespace lease-name current owner-id token election-id now-ms lease-ms))]
-          (if (= ::conflict updated)
-            (let [lease (get-lease kubernetes-client namespace lease-name)]
-              (if (and lease
-                       (lease-owned-by-caller? lease owner-id token now-ms))
-                (let [retry (replace-lease! kubernetes-client namespace lease-name
-                                            (renew-lease-body namespace lease-name lease owner-id token election-id now-ms lease-ms))]
-                  (if (= ::conflict retry)
-                    (renew-lost-result election-id (when (lease-active? lease now-ms) lease) now-ms)
-                    (common/renew-result :kubernetes-lease election-id
-                                         ["renewed"
-                                          (:holder-identity retry)
-                                          (some-> (:lease-transitions retry) str)
-                                          token
-                                          (some-> (remaining-ttl-ms retry now-ms) str)])))
-                (renew-lost-result election-id (when (lease-active? lease now-ms) lease) now-ms)))
-            (common/renew-result :kubernetes-lease election-id
-                                 ["renewed"
-                                  (:holder-identity updated)
-                                  (some-> (:lease-transitions updated) str)
-                                  token
-                                  (some-> (remaining-ttl-ms updated now-ms) str)]))))))
+    (obs/observe-operation observability :kubernetes-lease :renew election-id
+                           (fn []
+                             (let [election-id (common/normalize-election-id election-id)
+                                   token (common/normalize-token token)
+                                   lease-name (lease-name lease-name-prefix election-id)
+                                   lease-ms (common/lease-ms opts default-lease-ms)
+                                   now-ms (common/now-ms clock)
+                                   current (get-lease kubernetes-client namespace lease-name)]
+                               (if (or (nil? current)
+                                       (not (lease-owned-by-token? current token now-ms)))
+                                 (renew-lost-result election-id (when (lease-active? current now-ms) current) now-ms)
+                                 (let [updated (replace-lease! kubernetes-client namespace lease-name
+                                                               (renew-lease-body namespace lease-name current owner-id token election-id now-ms lease-ms))]
+                                   (if (= ::conflict updated)
+                                     (let [lease (get-lease kubernetes-client namespace lease-name)]
+                                       (if (and lease
+                                                (lease-owned-by-caller? lease owner-id token now-ms))
+                                         (let [retry (replace-lease! kubernetes-client namespace lease-name
+                                                                     (renew-lease-body namespace lease-name lease owner-id token election-id now-ms lease-ms))]
+                                           (if (= ::conflict retry)
+                                             (renew-lost-result election-id (when (lease-active? lease now-ms) lease) now-ms)
+                                             (common/renew-result :kubernetes-lease election-id
+                                                                  ["renewed"
+                                                                   (:holder-identity retry)
+                                                                   (some-> (:lease-transitions retry) str)
+                                                                   token
+                                                                   (some-> (remaining-ttl-ms retry now-ms) str)])))
+                                         (renew-lost-result election-id (when (lease-active? lease now-ms) lease) now-ms)))
+                                     (common/renew-result :kubernetes-lease election-id
+                                                          ["renewed"
+                                                           (:holder-identity updated)
+                                                           (some-> (:lease-transitions updated) str)
+                                                           token
+                                                           (some-> (remaining-ttl-ms updated now-ms) str)]))))))))
 
   (resign! [_ election-id token _opts]
-    (let [election-id (common/normalize-election-id election-id)
-          token (common/normalize-token token)
-          lease-name (lease-name lease-name-prefix election-id)
-          now-ms (common/now-ms clock)
-          current (get-lease kubernetes-client namespace lease-name)]
-      (if (or (nil? current)
-              (not (lease-owned-by-token? current token now-ms)))
-        (resign-not-owner-result election-id (when (lease-active? current now-ms) current) now-ms)
-        (let [updated (replace-lease! kubernetes-client namespace lease-name
-                                      (resign-lease-body namespace lease-name current election-id))]
-          (if (= ::conflict updated)
-            (let [lease (get-lease kubernetes-client namespace lease-name)]
-              (if (and lease
-                       (lease-owned-by-caller? lease owner-id token now-ms))
-                (let [retry (replace-lease! kubernetes-client namespace lease-name
-                                            (resign-lease-body namespace lease-name lease election-id))]
-                  (if (= ::conflict retry)
-                    (resign-not-owner-result election-id (when (lease-active? lease now-ms) lease) now-ms)
-                    (common/resign-result :kubernetes-lease election-id
-                                          ["released"
-                                           owner-id
-                                           (some-> (:lease-transitions retry) str)])))
-                (resign-not-owner-result election-id (when (lease-active? lease now-ms) lease) now-ms)))
-            (common/resign-result :kubernetes-lease election-id
-                                  ["released"
-                                   owner-id
-                                   (some-> (:lease-transitions updated) str)]))))))
+    (obs/observe-operation observability :kubernetes-lease :resign election-id
+                           (fn []
+                             (let [election-id (common/normalize-election-id election-id)
+                                   token (common/normalize-token token)
+                                   lease-name (lease-name lease-name-prefix election-id)
+                                   now-ms (common/now-ms clock)
+                                   current (get-lease kubernetes-client namespace lease-name)]
+                               (if (or (nil? current)
+                                       (not (lease-owned-by-token? current token now-ms)))
+                                 (resign-not-owner-result election-id (when (lease-active? current now-ms) current) now-ms)
+                                 (let [updated (replace-lease! kubernetes-client namespace lease-name
+                                                               (resign-lease-body namespace lease-name current election-id))]
+                                   (if (= ::conflict updated)
+                                     (let [lease (get-lease kubernetes-client namespace lease-name)]
+                                       (if (and lease
+                                                (lease-owned-by-caller? lease owner-id token now-ms))
+                                         (let [retry (replace-lease! kubernetes-client namespace lease-name
+                                                                     (resign-lease-body namespace lease-name lease election-id))]
+                                           (if (= ::conflict retry)
+                                             (resign-not-owner-result election-id (when (lease-active? lease now-ms) lease) now-ms)
+                                             (common/resign-result :kubernetes-lease election-id
+                                                                   ["released"
+                                                                    owner-id
+                                                                    (some-> (:lease-transitions retry) str)])))
+                                         (resign-not-owner-result election-id (when (lease-active? lease now-ms) lease) now-ms)))
+                                     (common/resign-result :kubernetes-lease election-id
+                                                           ["released"
+                                                            owner-id
+                                                            (some-> (:lease-transitions updated) str)]))))))))
 
   (status [_ election-id _opts]
-    (let [election-id (common/normalize-election-id election-id)
-          lease-name (lease-name lease-name-prefix election-id)
-          now-ms (common/now-ms clock)
-          current (get-lease kubernetes-client namespace lease-name)]
-      (if (and current (lease-active? current now-ms))
-        (common/status-result :kubernetes-lease election-id
-                              (holder-response :held current now-ms))
-        (common/status-result :kubernetes-lease election-id ["vacant"])))))
+    (obs/observe-operation observability :kubernetes-lease :status election-id
+                           (fn []
+                             (let [election-id (common/normalize-election-id election-id)
+                                   lease-name (lease-name lease-name-prefix election-id)
+                                   now-ms (common/now-ms clock)
+                                   current (get-lease kubernetes-client namespace lease-name)]
+                               (if (and current (lease-active? current now-ms))
+                                 (common/status-result :kubernetes-lease election-id
+                                                       (holder-response :held current now-ms))
+                                 (common/status-result :kubernetes-lease election-id ["vacant"])))))))
 
 (defmethod ig/init-key :d-core.core.leader-election.kubernetes-lease/kubernetes-lease
-  [_ {:keys [kubernetes-client owner-id default-lease-ms clock lease-name-prefix]
+  [_ {:keys [kubernetes-client owner-id default-lease-ms clock lease-name-prefix logger metrics]
       :or {default-lease-ms common/default-lease-ms
            lease-name-prefix default-lease-name-prefix}}]
   (when-not kubernetes-client
@@ -570,4 +579,5 @@
                                    (:namespace kubernetes-client)
                                    (normalize-lease-name-prefix lease-name-prefix)
                                    (common/require-positive-long default-lease-ms :default-lease-ms)
-                                   (common/normalize-clock clock)))
+                                   (common/normalize-clock clock)
+                                   (obs/make-context logger metrics)))

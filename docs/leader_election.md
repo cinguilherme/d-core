@@ -120,7 +120,7 @@ Component options:
 - Postgres only: `:bootstrap-schema?` defaults to `false`
 - Postgres lease expiry is evaluated from database time; `:clock` is not authoritative for Postgres lease validity
 - Kubernetes Lease only: `:lease-name-prefix` defaults to `"dcore-leader-"`
-- Kubernetes Lease only: `:lease-name-prefix` is validated strictly at init and rejected if it cannot produce valid Lease names within Kubernetes' 63-character limit
+- Kubernetes Lease only: `:lease-name-prefix` is validated strictly at init against the backend's actual Lease-name generation, including the fallback hashed form used when no election-id characters fit
 - Kubernetes client only: `:api-server-url` defaults from `KUBERNETES_SERVICE_HOST` and `KUBERNETES_SERVICE_PORT_HTTPS`
 - Kubernetes client only: `:token-file`, `:ca-cert-file`, and `:namespace-file` default to the mounted ServiceAccount paths under `/var/run/secrets/kubernetes.io/serviceaccount/`
 - Kubernetes client only: `:namespace` may override the mounted namespace file
@@ -184,6 +184,7 @@ roleRef:
 - Redis, Valkey, and Postgres all evaluate lease expiry authoritatively in the backend they coordinate through.
 - Kubernetes Lease expiry is evaluated from the locally observed `renewTime + leaseDurationSeconds`, so local clock quality matters for that backend.
 - Kubernetes Lease liveness and takeover decisions are based on Lease spec fields (`holderIdentity`, `renewTime`, and `leaseDurationSeconds`), not on the private token annotation.
+- Very long Kubernetes Lease prefixes may consume the visible election-id segment entirely; the backend still generates a valid prefix-plus-hash Lease name within Kubernetes' 63-character limit.
 - Fencing increments only on fresh acquisition, not on renewals.
 - Renew and release are token-checked, so one holder cannot accidentally release another holder’s lease after expiry.
 - For Kubernetes Lease specifically, the private token annotation is only used to prove ownership for `renew!` and `resign!`. If the annotation is missing but the Lease spec is still active, `status` reports `:held` and competing instances treat it as `:busy`.

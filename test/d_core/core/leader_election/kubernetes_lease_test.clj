@@ -58,14 +58,15 @@
 (deftest lease-name-normalization
   (let [name-a (k8s/lease-name "DCore_Leader" "Orders/Sync:Primary")
         name-b (k8s/lease-name "DCore_Leader" "Orders/Sync:Primary")
-        valid-prefix (apply str (repeat 48 "a"))
-        valid-name (k8s/lease-name valid-prefix "x")]
+        valid-prefix (apply str (repeat 50 "a"))
+        fallback-name (k8s/lease-name valid-prefix "x")]
     (is (= name-a name-b))
     (is (re-matches #"[a-z0-9-]+" name-a))
     (is (<= (count name-a) 63))
-    (is (= 63 (count valid-name)))
+    (is (= 63 (count fallback-name)))
+    (is (= 1 (count (re-seq #"-" fallback-name))))
     (is (thrown? clojure.lang.ExceptionInfo
-                 (k8s/normalize-lease-name-prefix (apply str (repeat 49 "a")))))))
+                 (k8s/normalize-lease-name-prefix (apply str (repeat 51 "a")))))))
 
 (deftest acquire-on-missing-lease-creates
   (let [component (make-component)
@@ -497,4 +498,4 @@
     (is (thrown? clojure.lang.ExceptionInfo
                  (ig/init-key :d-core.core.leader-election.kubernetes-lease/kubernetes-lease
                               {:kubernetes-client {:namespace "workers"}
-                               :lease-name-prefix (apply str (repeat 49 "a"))})))))
+                               :lease-name-prefix (apply str (repeat 51 "a"))})))))

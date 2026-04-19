@@ -24,7 +24,7 @@
   12)
 
 (def ^:private max-normalized-prefix-length
-  (- max-lease-name-length lease-name-hash-length 2))
+  (- max-lease-name-length lease-name-hash-length))
 
 (defn normalize-lease-name-prefix
   [value]

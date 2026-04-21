@@ -9,11 +9,12 @@ v1 includes:
 - Valkey-backed leader election (`:d-core.core.leader-election.valkey/valkey`)
 - Postgres-backed leader election (`:d-core.core.leader-election.postgres/postgres`)
 - Kubernetes Lease-backed leader election (`:d-core.core.leader-election.kubernetes-lease/kubernetes-lease`)
+- ZooKeeper-backed leader election (`:d-core.core.leader-election.zookeeper/zookeeper`)
 
 v1 intentionally does **not** include:
 - Quartz coupling
 - a scheduler/runtime helper that auto-renews in the background
-- ZooKeeper backends
+- a generic “run while leader” runtime loop
 
 ## Protocol
 
@@ -112,10 +113,31 @@ server.
    :default-lease-ms 15000}}}
 ```
 
+### ZooKeeper
+
+This backend is **session-backed**, not TTL-backed. Leadership is held by an
+ephemeral sequential znode, and `:remaining-ttl-ms` is not reported.
+
+```edn
+{:system
+ {:d-core.core.clients.zookeeper/client
+  {:connect-string "localhost:2181"
+   :session-timeout-ms 15000
+   :connection-timeout-ms 5000
+   :retry-base-sleep-ms 250
+   :retry-max-retries 10
+   :block-until-connected-ms 5000}
+
+  :d-core.core.leader-election.zookeeper/zookeeper
+  {:zookeeper-client #ig/ref :d-core.core.clients.zookeeper/client
+   :owner-id "orders-worker-1"
+   :base-path "/dcore/leader-election"}}}
+```
+
 Component options:
-- `:redis-client`, `:valkey-client`, `:postgres-client`, or `:kubernetes-client` is required depending on backend
+- `:redis-client`, `:valkey-client`, `:postgres-client`, `:kubernetes-client`, or `:zookeeper-client` is required depending on backend
 - `:owner-id` defaults to `<hostname>:<uuid>`; production systems should set this explicitly
-- `:default-lease-ms` defaults to `15000`
+- `:default-lease-ms` defaults to `15000` for Redis, Valkey, Postgres, and Kubernetes Lease
 - `:clock` may be a `java.time.Clock`, a `d-core.libs.time/clock` component, a clock opts map, or a function returning epoch ms / `Instant`
 - `:logger` is optional and enables structured lifecycle and failure logs
 - `:metrics` is optional and must implement `d-core.core.metrics.protocol/MetricsProtocol`
@@ -129,6 +151,14 @@ Component options:
 - Kubernetes client only: `:token-file`, `:ca-cert-file`, and `:namespace-file` default to the mounted ServiceAccount paths under `/var/run/secrets/kubernetes.io/serviceaccount/`
 - Kubernetes client only: `:namespace` may override the mounted namespace file
 - Kubernetes client only: `:request-timeout-ms` defaults to `5000`
+- ZooKeeper only: `:base-path` defaults to `"/dcore/leader-election"`
+- ZooKeeper only: client `:connect-string` is required
+- ZooKeeper only: client `:session-timeout-ms` defaults to `15000`
+- ZooKeeper only: client `:connection-timeout-ms` defaults to `5000`
+- ZooKeeper only: client `:retry-base-sleep-ms` defaults to `250`
+- ZooKeeper only: client `:retry-max-retries` defaults to `10`
+- ZooKeeper only: client `:block-until-connected-ms` defaults to `5000`
+- ZooKeeper only: backend `:default-lease-ms` defaults from the ZooKeeper client session timeout and must match it if explicitly configured
 
 ## Observability
 
@@ -212,8 +242,10 @@ roleRef:
 - Redis and Valkey use a single lease key per election and a separate monotonic fencing counter.
 - Postgres uses a single persistent row per election and preserves fencing across release/reacquire cycles.
 - Kubernetes Lease uses one namespaced `coordination.k8s.io/v1` `Lease` object per election.
+- ZooKeeper uses one persistent election path plus ephemeral sequential child znodes per acquisition attempt.
 - Redis, Valkey, and Postgres all evaluate lease expiry authoritatively in the backend they coordinate through.
 - Kubernetes Lease expiry is evaluated from the locally observed `renewTime + leaseDurationSeconds`, so local clock quality matters for that backend.
+- ZooKeeper is session-backed, not TTL-backed. There is no portable remaining lease countdown, so ZooKeeper results omit `:remaining-ttl-ms`.
 - Kubernetes Lease liveness and takeover decisions are based on Lease spec fields (`holderIdentity`, `renewTime`, and `leaseDurationSeconds`), not on the private token annotation.
 - Very long Kubernetes Lease prefixes may consume the visible election-id segment entirely; the backend still generates a valid prefix-plus-hash Lease name within Kubernetes' 63-character limit.
 - Fencing increments only on fresh acquisition, not on renewals.
@@ -223,6 +255,10 @@ roleRef:
 - The Redis/Valkey backends are single-endpoint lease coordination. They are **not** Redlock or multi-master quorum consensus.
 - The Postgres backend works with existing pooled or unpooled `postgres-client` datasources.
 - The Kubernetes backend is **best-effort**, not strong fencing. Its `:fencing` value maps to `spec.leaseTransitions`, which is useful as a monotonic acquisition counter but not equivalent to database-authoritative fencing.
+- The ZooKeeper backend is ZooKeeper-native, not TTL-emulated. Its `:fencing` value is the winning ephemeral sequential suffix, which is monotonic per election path.
+- ZooKeeper does not support per-call `:lease-ms` overrides beyond exact-match compatibility checks against the backend default/session timeout.
+- ZooKeeper treats `SUSPENDED` and `LOST` connection states conservatively: leadership is not considered safe in those states.
+- ZooKeeper dev/test support in this repo uses Apache Curator and the local Docker Compose `zookeeper` service on `localhost:2181`.
 - The Kubernetes backend is in-cluster only in this version. It does **not** support kubeconfig loading, exec auth plugins, or out-of-cluster auth flows.
 - Kubernetes Lease duration is second-granularity. `d-core` still accepts `:lease-ms`, but the backend rounds up to whole seconds with a minimum of `1`.
 - The Kubernetes backend requires a modern supported cluster with the `coordination.k8s.io/v1` `Lease` API available. It does **not** depend on the newer coordinated leader election `LeaseCandidate` API.

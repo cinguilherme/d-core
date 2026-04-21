@@ -3,6 +3,7 @@
             [clojure.string :as str]
             [d-core.core.clients.zookeeper.client :as zk-client]
             [d-core.core.leader-election.common :as common]
+            [d-core.core.leader-election.logics.zookeeper :as zk-logics]
             [d-core.core.leader-election.observability :as obs]
             [d-core.core.leader-election.protocol :as p]
             [integrant.core :as ig])
@@ -337,28 +338,25 @@
   (when-not zookeeper-client
     (throw (ex-info "ZooKeeper leader election requires :zookeeper-client"
                     {:type ::missing-zookeeper-client})))
-  (let [session-timeout-ms (:session-timeout-ms zookeeper-client)]
-    (when-not session-timeout-ms
-      (throw (ex-info "ZooKeeper leader election requires a client with :session-timeout-ms"
-                      {:type ::missing-session-timeout-ms})))
-    (let [explicit-default? (contains? opts :default-lease-ms)
-          default-lease-ms (if explicit-default?
-                             (common/require-positive-long default-lease-ms :default-lease-ms)
-                             session-timeout-ms)
-          base-path (normalize-base-path base-path)]
-      (when (and explicit-default?
-                 (not= default-lease-ms session-timeout-ms))
-        (throw (ex-info "ZooKeeper leader election :default-lease-ms must match the ZooKeeper client session timeout"
-                        {:type ::default-lease-ms-mismatch
-                         :field :default-lease-ms
-                         :default-lease-ms default-lease-ms
-                         :session-timeout-ms session-timeout-ms})))
-      (connected-state! zookeeper-client :init nil)
-      (ensure-path! zookeeper-client base-path)
-      (->ZooKeeperLeaderElection zookeeper-client
-                                 (common/normalize-owner-id owner-id)
-                                 base-path
-                                 default-lease-ms
-                                 (common/normalize-clock clock)
-                                 (obs/make-context logger metrics)
-                                 (atom {})))))
+  (let [session-timeout-ms (:session-timeout-ms zookeeper-client)
+        _ (when (zk-logics/missing-session-timeout? session-timeout-ms)
+            (throw (ex-info "ZooKeeper leader election requires a client with :session-timeout-ms"
+                            {:type ::missing-session-timeout-ms})))
+        {:keys [default-lease-ms explicit-default?]}
+        (zk-logics/resolve-default-lease-ms opts session-timeout-ms)
+        base-path (normalize-base-path base-path)]
+    (when (zk-logics/default-lease-ms-mismatch? explicit-default? default-lease-ms session-timeout-ms)
+      (throw (ex-info "ZooKeeper leader election :default-lease-ms must match the ZooKeeper client session timeout"
+                      {:type ::default-lease-ms-mismatch
+                       :field :default-lease-ms
+                       :default-lease-ms default-lease-ms
+                       :session-timeout-ms session-timeout-ms})))
+    (connected-state! zookeeper-client :init nil)
+    (ensure-path! zookeeper-client base-path)
+    (->ZooKeeperLeaderElection zookeeper-client
+                               (common/normalize-owner-id owner-id)
+                               base-path
+                               default-lease-ms
+                               (common/normalize-clock clock)
+                               (obs/make-context logger metrics)
+                               (atom {}))))

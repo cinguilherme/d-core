@@ -3,6 +3,7 @@
             [next.jdbc :as jdbc]
             [next.jdbc.result-set :as rs]
             [d-core.core.leader-election.common :as common]
+            [d-core.core.leader-election.logics.postgres :as pg-logics]
             [d-core.core.leader-election.observability :as obs]
             [d-core.core.leader-election.protocol :as p]))
 
@@ -56,14 +57,6 @@
 (defn- remaining-ttl-sql
   []
   (str "GREATEST(0, expires_at_ms - " statement-now-ms-sql ")::bigint AS remaining_ttl_ms"))
-
-(defn- holder-row->response
-  [status row]
-  (when row
-    [(name status)
-     (:owner_id row)
-     (str (:fencing row))
-     (str (:remaining_ttl_ms row))]))
 
 (defn select-active-holder
   [datasource table-ident election-id]
@@ -141,66 +134,49 @@
   (acquire! [_ election-id opts]
     (obs/observe-operation observability :postgres :acquire election-id
                            (fn []
-                             (let [election-id (common/normalize-election-id election-id)
-                                   token (common/generate-token)
-                                   lease-ms (common/lease-ms opts default-lease-ms)]
-                               (if-let [row (try-acquire-row! datasource table-ident election-id owner-id token lease-ms)]
-                                 (common/acquire-result :postgres election-id
-                                                        ["acquired"
-                                                         (:owner_id row)
-                                                         (str (:fencing row))
-                                                         (:token row)
-                                                         (str (:remaining_ttl_ms row))])
-                                 (if-let [holder (select-active-holder datasource table-ident election-id)]
-                                   (common/acquire-result :postgres election-id
-                                                          ["busy"
-                                                           (:owner_id holder)
-                                                           (str (:fencing holder))
-                                                           ""
-                                                           (str (:remaining_ttl_ms holder))])
-                                   (common/acquire-result :postgres election-id ["busy"])))))))
+                             (pg-logics/acquire! {:backend :postgres
+                                                  :datasource datasource
+                                                  :table-ident table-ident
+                                                  :owner-id owner-id
+                                                  :default-lease-ms default-lease-ms
+                                                  :try-acquire-row! try-acquire-row!
+                                                  :select-active-holder select-active-holder}
+                                                 election-id
+                                                 opts))))
 
   (renew! [_ election-id token opts]
     (obs/observe-operation observability :postgres :renew election-id
                            (fn []
-                             (let [election-id (common/normalize-election-id election-id)
-                                   token (common/normalize-token token)
-                                   lease-ms (common/lease-ms opts default-lease-ms)]
-                               (if-let [row (try-renew-row! datasource table-ident election-id token lease-ms)]
-                                 (common/renew-result :postgres election-id
-                                                      ["renewed"
-                                                       (:owner_id row)
-                                                       (str (:fencing row))
-                                                       (:token row)
-                                                       (str (:remaining_ttl_ms row))])
-                                 (if-let [holder (select-active-holder datasource table-ident election-id)]
-                                   (common/renew-result :postgres election-id
-                                                        (holder-row->response :lost holder))
-                                   (common/renew-result :postgres election-id ["lost"])))))))
+                             (pg-logics/renew! {:backend :postgres
+                                                :datasource datasource
+                                                :table-ident table-ident
+                                                :default-lease-ms default-lease-ms
+                                                :try-renew-row! try-renew-row!
+                                                :select-active-holder select-active-holder}
+                                               election-id
+                                               token
+                                               opts))))
 
   (resign! [_ election-id token _opts]
     (obs/observe-operation observability :postgres :resign election-id
                            (fn []
-                             (let [election-id (common/normalize-election-id election-id)
-                                   token (common/normalize-token token)]
-                               (if-let [row (try-resign-row! datasource table-ident election-id token)]
-                                 (common/resign-result :postgres election-id
-                                                       ["released"
-                                                        owner-id
-                                                        (str (:fencing row))])
-                                 (if-let [holder (select-active-holder datasource table-ident election-id)]
-                                   (common/resign-result :postgres election-id
-                                                         (holder-row->response :not-owner holder))
-                                   (common/resign-result :postgres election-id ["not-owner"])))))))
+                             (pg-logics/resign! {:backend :postgres
+                                                 :datasource datasource
+                                                 :table-ident table-ident
+                                                 :owner-id owner-id
+                                                 :try-resign-row! try-resign-row!
+                                                 :select-active-holder select-active-holder}
+                                                election-id
+                                                token))))
 
   (status [_ election-id _opts]
     (obs/observe-operation observability :postgres :status election-id
                            (fn []
-                             (let [election-id (common/normalize-election-id election-id)]
-                               (if-let [holder (select-active-holder datasource table-ident election-id)]
-                                 (common/status-result :postgres election-id
-                                                       (holder-row->response :held holder))
-                                 (common/status-result :postgres election-id ["vacant"])))))))
+                             (pg-logics/status {:backend :postgres
+                                                :datasource datasource
+                                                :table-ident table-ident
+                                                :select-active-holder select-active-holder}
+                                               election-id)))))
 
 (defmethod ig/init-key :d-core.core.leader-election.postgres/postgres
   [_ {:keys [postgres-client owner-id default-lease-ms clock bootstrap-schema? table-name logger metrics]

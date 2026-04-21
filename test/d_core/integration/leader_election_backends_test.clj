@@ -22,14 +22,14 @@
     :default-uri "redis://localhost:6379"
     :make-client redis-client/make-client
     :make-component (fn [client owner-id prefix]
-                      (redis/->RedisLeaderElection client owner-id prefix 200 #(System/currentTimeMillis)))}
+                      (redis/->RedisLeaderElection client owner-id prefix 200 #(System/currentTimeMillis) nil))}
    {:name :valkey
     :env-var "DCORE_INTEGRATION_LEADER_ELECTION_VALKEY"
     :uri-env "DCORE_VALKEY_URI"
     :default-uri "redis://localhost:6380"
     :make-client valkey-client/make-client
     :make-component (fn [client owner-id prefix]
-                      (valkey/->ValkeyLeaderElection client owner-id prefix 200 #(System/currentTimeMillis)))}])
+                      (valkey/->ValkeyLeaderElection client owner-id prefix 200 #(System/currentTimeMillis) nil))}])
 
 (defn- backend-enabled?
   [env-var]

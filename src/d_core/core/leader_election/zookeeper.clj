@@ -236,102 +236,78 @@
   (acquire! [_ election-id opts]
     (obs/observe-operation observability backend :acquire election-id
                            (fn []
-                             (let [election-id (common/normalize-election-id election-id)
-                                   _lease-ms (compatible-lease-ms opts default-lease-ms)
-                                   _ (connected-state! zookeeper-client :acquire election-id)
-                                   election-path (election-path base-path election-id)
-                                   token (common/generate-token)
-                                   candidate-path (create-candidate! zookeeper-client
-                                                                     election-path
-                                                                     (candidate-payload owner-id token election-id (common/now-ms clock)))
-                                   own-name (basename candidate-path)
-                                   leader (leader-info zookeeper-client election-path)]
-                               (if (= own-name (:name leader))
-                                 (do
-                                   (assoc-local-record! ownership election-id {:token token
-                                                                               :path candidate-path
-                                                                               :fencing (:fencing leader)})
-                                   (common/acquire-result backend election-id
-                                                          ["acquired"
-                                                           owner-id
-                                                           (some-> (:fencing leader) str)
-                                                           token]))
-                                 (do
-                                   (delete-node! zookeeper-client candidate-path)
-                                   (clear-local-record! ownership election-id)
-                                   (common/acquire-result backend election-id
-                                                          (result-parts :busy leader))))))))
+                             (zk-logics/acquire! {:backend backend
+                                                  :zookeeper-client zookeeper-client
+                                                  :owner-id owner-id
+                                                  :base-path base-path
+                                                  :default-lease-ms default-lease-ms
+                                                  :clock clock
+                                                  :ownership ownership
+                                                  :election-path election-path
+                                                  :compatible-lease-ms compatible-lease-ms
+                                                  :connected-state! connected-state!
+                                                  :create-candidate! create-candidate!
+                                                  :candidate-payload candidate-payload
+                                                  :basename basename
+                                                  :leader-info leader-info
+                                                  :assoc-local-record! assoc-local-record!
+                                                  :delete-node! delete-node!
+                                                  :clear-local-record! clear-local-record!
+                                                  :result-parts result-parts}
+                                                 election-id
+                                                 opts))))
 
   (renew! [_ election-id token opts]
     (obs/observe-operation observability backend :renew election-id
                            (fn []
-                             (let [election-id (common/normalize-election-id election-id)
-                                   token (common/normalize-token token)
-                                   _lease-ms (compatible-lease-ms opts default-lease-ms)]
-                               (if-not (zk-client/safe-state? zookeeper-client)
-                                 (do
-                                   (clear-local-record! ownership election-id)
-                                   (common/renew-result backend election-id ["lost"]))
-                                 (let [record (local-record ownership election-id)
-                                       election-path (election-path base-path election-id)
-                                       leader (leader-info zookeeper-client election-path)]
-                                   (if (and record
-                                            (= token (:token record))
-                                            (= (basename (:path record)) (:name leader)))
-                                     (common/renew-result backend election-id
-                                                          ["renewed"
-                                                           owner-id
-                                                           (some-> (:fencing leader) str)
-                                                           token])
-                                     (do
-                                       (when (and record
-                                                  (= token (:token record)))
-                                         (clear-local-record! ownership election-id))
-                                       (common/renew-result backend election-id
-                                                            (result-parts :lost leader))))))))))
+                             (zk-logics/renew! {:backend backend
+                                                :zookeeper-client zookeeper-client
+                                                :owner-id owner-id
+                                                :base-path base-path
+                                                :default-lease-ms default-lease-ms
+                                                :ownership ownership
+                                                :election-path election-path
+                                                :compatible-lease-ms compatible-lease-ms
+                                                :safe-state? zk-client/safe-state?
+                                                :local-record local-record
+                                                :basename basename
+                                                :leader-info leader-info
+                                                :clear-local-record! clear-local-record!
+                                                :result-parts result-parts}
+                                               election-id
+                                               token
+                                               opts))))
 
   (resign! [_ election-id token _opts]
     (obs/observe-operation observability backend :resign election-id
                            (fn []
-                             (let [election-id (common/normalize-election-id election-id)
-                                   token (common/normalize-token token)]
-                               (if-not (zk-client/safe-state? zookeeper-client)
-                                 (do
-                                   (clear-local-record! ownership election-id)
-                                   (common/resign-result backend election-id ["not-owner"]))
-                                 (let [record (local-record ownership election-id)
-                                       election-path (election-path base-path election-id)
-                                       leader (leader-info zookeeper-client election-path)]
-                                   (if (and record
-                                            (= token (:token record))
-                                            (= (basename (:path record)) (:name leader)))
-                                     (if (delete-node! zookeeper-client (:path record))
-                                       (do
-                                         (clear-local-record! ownership election-id)
-                                         (common/resign-result backend election-id
-                                                               ["released"
-                                                                owner-id
-                                                                (some-> (:fencing leader) str)]))
-                                       (do
-                                         (clear-local-record! ownership election-id)
-                                         (common/resign-result backend election-id
-                                                               (result-parts :not-owner leader))))
-                                     (do
-                                       (when (and record
-                                                  (= token (:token record)))
-                                         (clear-local-record! ownership election-id))
-                                       (common/resign-result backend election-id
-                                                             (result-parts :not-owner leader))))))))))
+                             (zk-logics/resign! {:backend backend
+                                                 :zookeeper-client zookeeper-client
+                                                 :owner-id owner-id
+                                                 :base-path base-path
+                                                 :ownership ownership
+                                                 :election-path election-path
+                                                 :safe-state? zk-client/safe-state?
+                                                 :local-record local-record
+                                                 :basename basename
+                                                 :leader-info leader-info
+                                                 :clear-local-record! clear-local-record!
+                                                 :delete-node! delete-node!
+                                                 :result-parts result-parts}
+                                                election-id
+                                                token))))
 
   (status [_ election-id _opts]
     (obs/observe-operation observability backend :status election-id
                            (fn []
-                             (let [election-id (common/normalize-election-id election-id)
-                                   _ (connected-state! zookeeper-client :status election-id)
-                                   leader (leader-info zookeeper-client (election-path base-path election-id))]
-                               (if leader
-                                 (common/status-result backend election-id (result-parts :held leader))
-                                 (common/status-result backend election-id ["vacant"])))))))
+                             (zk-logics/status {:backend backend
+                                                :zookeeper-client zookeeper-client
+                                                :base-path base-path
+                                                :election-path election-path
+                                                :connected-state! connected-state!
+                                                :leader-info leader-info
+                                                :result-parts result-parts}
+                                               election-id)))))
 
 (defmethod ig/init-key :d-core.core.leader-election.zookeeper/zookeeper
   [_ {:keys [zookeeper-client owner-id base-path default-lease-ms clock logger metrics] :as opts}]

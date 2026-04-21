@@ -1,5 +1,6 @@
 (ns d-core.core.leader-election.valkey
   (:require [d-core.core.leader-election.common :as common]
+            [d-core.core.leader-election.logics.redis-like :as redis-logics]
             [d-core.core.leader-election.observability :as obs]
             [d-core.core.leader-election.redis-common :as redis-common]
             [d-core.core.leader-election.protocol :as p]
@@ -48,50 +49,47 @@
   (acquire! [_ election-id opts]
     (obs/observe-operation observability :valkey :acquire election-id
                            (fn []
-                             (let [election-id (common/normalize-election-id election-id)
-                                   token (common/generate-token)
-                                   now-ms (common/now-ms clock)
-                                   lease-ms (common/lease-ms opts default-lease-ms)
-                                   response (eval-acquire! valkey-client
-                                                           (redis-common/lease-key prefix election-id)
-                                                           (redis-common/fencing-key prefix election-id)
-                                                           owner-id
-                                                           token
-                                                           now-ms
-                                                           lease-ms)]
-                               (common/acquire-result :valkey election-id response)))))
+                             (redis-logics/acquire! {:backend :valkey
+                                                     :client valkey-client
+                                                     :owner-id owner-id
+                                                     :prefix prefix
+                                                     :default-lease-ms default-lease-ms
+                                                     :clock clock
+                                                     :eval-acquire! eval-acquire!}
+                                                    election-id
+                                                    opts))))
 
   (renew! [_ election-id token opts]
     (obs/observe-operation observability :valkey :renew election-id
                            (fn []
-                             (let [election-id (common/normalize-election-id election-id)
-                                   token (common/normalize-token token)
-                                   now-ms (common/now-ms clock)
-                                   lease-ms (common/lease-ms opts default-lease-ms)
-                                   response (eval-renew! valkey-client
-                                                         (redis-common/lease-key prefix election-id)
-                                                         token
-                                                         now-ms
-                                                         lease-ms)]
-                               (common/renew-result :valkey election-id response)))))
+                             (redis-logics/renew! {:backend :valkey
+                                                   :client valkey-client
+                                                   :prefix prefix
+                                                   :default-lease-ms default-lease-ms
+                                                   :clock clock
+                                                   :eval-renew! eval-renew!}
+                                                  election-id
+                                                  token
+                                                  opts))))
 
   (resign! [_ election-id token _opts]
     (obs/observe-operation observability :valkey :resign election-id
                            (fn []
-                             (let [election-id (common/normalize-election-id election-id)
-                                   token (common/normalize-token token)
-                                   response (eval-resign! valkey-client
-                                                          (redis-common/lease-key prefix election-id)
-                                                          token)]
-                               (common/resign-result :valkey election-id response)))))
+                             (redis-logics/resign! {:backend :valkey
+                                                    :client valkey-client
+                                                    :prefix prefix
+                                                    :eval-resign! eval-resign!}
+                                                   election-id
+                                                   token))))
 
   (status [_ election-id _opts]
     (obs/observe-operation observability :valkey :status election-id
                            (fn []
-                             (let [election-id (common/normalize-election-id election-id)
-                                   response (eval-status valkey-client
-                                                         (redis-common/lease-key prefix election-id))]
-                               (common/status-result :valkey election-id response))))))
+                             (redis-logics/status {:backend :valkey
+                                                   :client valkey-client
+                                                   :prefix prefix
+                                                   :eval-status eval-status}
+                                                  election-id)))))
 
 (defmethod ig/init-key :d-core.core.leader-election.valkey/valkey
   [_ {:keys [valkey-client owner-id prefix default-lease-ms clock logger metrics]

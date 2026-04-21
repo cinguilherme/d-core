@@ -3,7 +3,7 @@
 
 (defn missing-session-timeout?
   [session-timeout-ms]
-  (nil? session-timeout-ms))
+  (not session-timeout-ms))
 
 (defn resolve-default-lease-ms
   [{:keys [default-lease-ms] :as opts} session-timeout-ms]

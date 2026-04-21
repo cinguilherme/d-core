@@ -310,4 +310,15 @@
                     nil
                     (catch clojure.lang.ExceptionInfo ex
                       ex))]
-        (is (= ::zk/default-lease-ms-mismatch (:type (ex-data error))))))))
+        (is (= ::zk/default-lease-ms-mismatch (:type (ex-data error)))))))
+
+  (testing "false session timeout is treated as missing"
+    (with-redefs [zk/ensure-path! (fn [_client path] path)]
+      (let [error (try
+                    (ig/init-key :d-core.core.leader-election.zookeeper/zookeeper
+                                 {:zookeeper-client (assoc (make-client) :session-timeout-ms false)
+                                  :owner-id "node-a"})
+                    nil
+                    (catch clojure.lang.ExceptionInfo ex
+                      ex))]
+        (is (= ::zk/missing-session-timeout-ms (:type (ex-data error))))))))

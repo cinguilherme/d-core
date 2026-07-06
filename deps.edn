@@ -50,6 +50,9 @@
         ;; Scheduling / Quartz
         org.quartz-scheduler/quartz {:mvn/version "2.3.2"}
 
+        ;; Temporal workflow orchestration
+        io.temporal/temporal-sdk {:mvn/version "1.33.0"}
+
         ;; ZooKeeper / Curator
         org.apache.curator/curator-framework {:mvn/version "5.9.0"}
 

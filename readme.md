@@ -23,7 +23,7 @@ For `StorageProtocol`, the core operations are:
  - cache (in-memory + local-file + redis/valkey/memcached-backed)
   - storage (local-disk + minio/s3-style)
   - cryptography (simple AES + storage-backed key material)
-  - clients (redis/valkey, memcached, sqs, kafka, jetstream/nats, sqlite/postgres, kubernetes, zookeeper, datomic (Work in Progress), typesense, rabbitmq)
+  - clients (redis/valkey, memcached, sqs, kafka, jetstream/nats, sqlite/postgres, kubernetes, zookeeper, datomic (Work in Progress), typesense, rabbitmq, temporal)
   - http client (policy wrapper: rate-limit, bulkhead, circuit breaker, retries)
   - geocoding (protocol + Nominatim + cached wrapper)
   - routing and matrix (protocol + OSRM + Valhalla)
@@ -34,6 +34,7 @@ For `StorageProtocol`, the core operations are:
   - leader election (Redis/Valkey/Postgres leases, Kubernetes Lease, ZooKeeper session-backed)
   - API keys (protocol + Postgres backend + auth/middleware integration)
   - cron tasks (Quartz-backed scheduler)
+  - temporal (low-level Java SDK client wrapper)
   - tracing helpers + Ring middleware
   - simple in-memory queues for local/dev and testing
 - **Swappable implementations** behind stable protocols (so apps can keep the same business logic across envs).

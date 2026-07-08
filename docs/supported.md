@@ -43,6 +43,7 @@ This page tracks what D-Core currently supports, what is planned, and what is ex
 - ZooKeeper
 - Datomic
 - Typesense
+- Temporal (low-level Java SDK client wrapper)
 - HTTP (policy wrapper: rate-limit, bulkhead, circuit breaker, retries)
 
 ### Geocoding

@@ -35,6 +35,15 @@ services:
       - zookeeper_data:/data
       - zookeeper_datalog:/datalog
 
+  temporal:
+    image: temporalio/temporal
+    ports:
+      - 7233:7233
+      - 8233:8233
+    volumes:
+      - temporal_data:/home/temporal
+    command: server start-dev --ip 0.0.0.0 --db-filename /home/temporal/temporal.db
+
   tile38:
     image: tile38/tile38:latest
     ports:
@@ -299,6 +308,7 @@ volumes:
   valkey_data:
   zookeeper_data:
   zookeeper_datalog:
+  temporal_data:
   memcached_data:
   minio_data:
   typesense_data:

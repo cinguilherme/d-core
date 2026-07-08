@@ -36,7 +36,7 @@ services:
       - zookeeper_datalog:/datalog
 
   temporal:
-    image: temporalio/temporal:${DCORE_TEMPORAL_VERSION:-1.29.1}
+    image: temporalio/temporal
     ports:
       - 7233:7233
       - 8233:8233

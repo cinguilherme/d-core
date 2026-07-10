@@ -229,6 +229,24 @@
    {}
    (:workers definition)))
 
+(defmulti start-worker-by-kind
+  "Dispatch worker startup by :kind"
+  (fn [worker _ctx _opts] (:kind worker)))
+
+(defmethod start-worker-by-kind :ticker
+  [worker ctx opts]
+  (start-ticker-worker worker ctx (:stop-chan opts)))
+
+(defmethod start-worker-by-kind :command
+  [worker ctx opts]
+  (start-command-worker worker ctx opts))
+
+(defmethod start-worker-by-kind :default
+  [worker _ctx _opts]
+  (throw (ex-info "Unknown worker kind"
+                  {:kind (:kind worker)
+                   :worker-id (:id worker)})))
+
 (defn start-workers
   "Start a workers runtime.
 
@@ -245,16 +263,13 @@
        (let [worker (assoc worker :id worker-id)
              ctx (assoc (worker-ctx components channels worker-id worker)
                         :stats stats
-                        :emit emit)]
-         (case (:kind worker)
-           :ticker (start-ticker-worker worker ctx stop-chan)
-           :command (start-command-worker worker ctx {:dev-guard? dev-guard?
-                                                      :guard-ms guard-ms
-                                                      :stats stats
-                                                      :emit emit})
-           (throw (ex-info "Unknown worker kind"
-                           {:kind (:kind worker)
-                            :worker-id worker-id})))))
+                        :emit emit)
+             opts {:dev-guard? dev-guard?
+                   :guard-ms guard-ms
+                   :stats stats
+                   :emit emit
+                   :stop-chan stop-chan}]
+         (start-worker-by-kind worker ctx opts)))
      {:channels channels
       :exposed (exposed-channels definition channels)
       :stats stats

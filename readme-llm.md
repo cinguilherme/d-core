@@ -30,9 +30,11 @@ Use this to translate drawings into concrete D-Core wiring:
   (see `docs/async_messaging.md`).
 - Dead letters -> `:d-core.core.messaging.dead-letter/*`
   (see `docs/dead_letters.md`).
-- Cache -> `:d-core.core.cache.common/common` plus a backend
-  (`:d-core.core.cache.redis/redis`, `:d-core.core.cache.in-memory/in-memory`,
-   `:d-core.core.cache.local-file/local-file`).
+- Cache -> moved to `d-core-cache` (`:d-core.core.cache.redis/redis`,
+  `:d-core.core.cache.valkey/valkey`, `:d-core.core.cache.memcached/memcached`,
+  `:d-core.core.cache.local-file/local-file`, `:d-core.core.cache.layered/layered`);
+  in-memory & common in `d-core-std` (`:d-core.core.cache.in-memory/in-memory`,
+  `:d-core.core.cache.common/common`).
 - Object storage -> moved to `d-core-store` (`:d-core.core.storage/common`,
   `:d-core.core.storage/minio`); local disk in `d-core-std` (`:d-core.core.storage/local-disk`).
 - SQL DB -> moved to `d-core-db` (`:d-core.core.databases.sql/common` plus backend

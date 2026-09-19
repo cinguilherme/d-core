@@ -20,10 +20,10 @@ For `StorageProtocol`, the core operations are:
 
 - **Integrant components** for common app infrastructure:
   - messaging (routing, producers/consumers, codecs, dead-letter)
- - cache (in-memory + local-file + redis/valkey/memcached-backed)
+  - cache (in-memory & common in d-core-std; redis/valkey/memcached/local-file/layered moved to d-core-cache)
   - storage (local-disk via d-core-std; object storage moved to d-core-store)
   - cryptography (simple AES + storage-backed key material)
-  - clients (redis/valkey, memcached, sqs, kafka, jetstream/nats, sqlite/postgres via d-core-db, kubernetes, zookeeper, datomic via d-core-db, typesense, rabbitmq, temporal)
+  - clients (redis/valkey, memcached via d-core-cache, sqs, kafka, jetstream/nats, sqlite/postgres via d-core-db, kubernetes, zookeeper, datomic via d-core-db, typesense, rabbitmq, temporal)
   - http client (policy wrapper: rate-limit, bulkhead, circuit breaker, retries)
   - geocoding (protocol + Nominatim + cached wrapper)
   - routing and matrix (protocol + OSRM + Valhalla)
@@ -110,7 +110,11 @@ Example (illustrative):
 
 ### Cache
 
-All cache backends implement `CacheProtocol` and can be composed. For single-cache routing, use `:d-core.core.cache.common/common`.
+All cache backends implement `CacheProtocol` (defined in [`d-core-std`](../d-core-std)).
+- **In-Memory & Common Cache**: Provided by `d-core-std` (`:d-core.core.cache.in-memory/in-memory`, `:d-core.core.cache.common/common`).
+- **Extended Backends**: Redis, Valkey, Memcached, LocalFile, and Layered cache are provided by [`d-core-cache`](../d-core-cache).
+
+For single-cache routing, use `:d-core.core.cache.common/common`.
 
 #### Local file cache (filesystem-backed)
 

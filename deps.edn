@@ -55,8 +55,7 @@
 
         ;; RabbitMQ dependency moved to d-core-async-messaging
 
-        ;; Memcached dependencies
-        net.spy/spymemcached {:mvn/version "2.12.3"}
+        ;; Memcached & cache implementations (redis, valkey, memcached, local-file, layered) moved to d-core-cache
 
         ;; Metrics / Prometheus
         io.prometheus/simpleclient {:mvn/version "0.16.0"}

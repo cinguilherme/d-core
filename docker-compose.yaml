@@ -161,16 +161,6 @@ services:
   #     TILE_MIN_ZOOM: 1
   #     TILE_MAX_ZOOM: 12
 
-  memcached:
-    image: memcached:1.6-alpine
-    ports:
-      - 11211:11211
-    volumes:
-      - memcached_data:/data
-    environment:
-      MEMCACHED_MAX_ITEM_SIZE: 1024
-    command: memcached -u memcached -m 64
-
   typesense:
     image: typesense/typesense:0.25.2
     ports:
@@ -309,7 +299,6 @@ volumes:
   zookeeper_data:
   zookeeper_datalog:
   temporal_data:
-  memcached_data:
   minio_data:
   typesense_data:
   nats_data:

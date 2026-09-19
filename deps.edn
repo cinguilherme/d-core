@@ -1,4 +1,7 @@
-{:deps {;; Clojure Core dependencies
+{:deps {;; d-core-std foundation library
+        org.clojars.cinguilherme/d-core-std {:local/root "../d-core-std"}
+
+        ;; Clojure Core dependencies
         org.clojure/clojure {:mvn/version "1.12.3"}
         org.clojure/core.async {:mvn/version "1.8.741"}
         
@@ -47,7 +50,7 @@
         ;; HTTP dependencies
         clj-http/clj-http {:mvn/version "3.12.3"}
 
-        ;; Scheduling / Quartz
+        ;; Scheduling / Quartz (also used by d-core.libs.cron-task)
         org.quartz-scheduler/quartz {:mvn/version "2.3.2"}
 
         ;; Temporal workflow orchestration
@@ -60,14 +63,11 @@
         aleph/aleph {:mvn/version "0.9.3"}
         manifold/manifold {:mvn/version "0.5.0"}
         
-        ;; JetStream / NATS dependencies
-        io.nats/jnats {:mvn/version "2.20.5"}
+        ;; JetStream / NATS dependency moved to d-core-async-messaging
         
-        ;; Kafka dependencies
-        org.apache.kafka/kafka-clients {:mvn/version "3.6.1"}
+        ;; Kafka dependency moved to d-core-async-messaging
 
-        ;; RabbitMQ dependencies
-        com.rabbitmq/amqp-client {:mvn/version "5.20.0"}
+        ;; RabbitMQ dependency moved to d-core-async-messaging
 
         ;; Memcached dependencies
         net.spy/spymemcached {:mvn/version "2.12.3"}

@@ -85,8 +85,9 @@ Moved to standalone library [`d-core-auth`](../../d-core-auth).
 - API key limitations middleware (`:d-core.core.auth.api-key/limitations-middleware`)
 - Token client helpers (`:d-core.core.auth/token-client`)
 
-### Rate Limiting
+### Rate Limiting (Moved to `d-core-rate-limit`)
 
+Moved to standalone library [`d-core-rate-limit`](../../d-core-rate-limit).
 - In-memory sliding window (`:d-core.core.rate-limit.sliding-window/limiter`)
 - In-memory leaky bucket (`:d-core.core.rate-limit.leaky-bucket/limiter`)
 - Redis fixed-window limiter (`:d-core.core.rate-limit.redis/limiter`)

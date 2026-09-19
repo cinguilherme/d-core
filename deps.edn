@@ -57,6 +57,7 @@
 
         ;; Memcached & cache implementations (redis, valkey, memcached, local-file, layered) moved to d-core-cache
         ;; Auth, Authn, Authz, and API key management moved to d-core-auth
+        ;; Rate limiting implementations (sliding-window, leaky-bucket, redis) moved to d-core-rate-limit
 
         ;; Metrics / Prometheus
         io.prometheus/simpleclient {:mvn/version "0.16.0"}

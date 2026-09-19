@@ -30,7 +30,7 @@ For `StorageProtocol`, the core operations are:
   - AI generation (provider-neutral protocol + LM Studio OpenAI-compatible adapter)
   - graphql server (Lacinia + optional GraphiQL + subscriptions)
   - metrics (Prometheus registry + scrape server)
-  - rate limiting (sliding window, leaky bucket, redis fixed-window)
+  - rate limiting (sliding window, leaky bucket, redis fixed-window) moved to d-core-rate-limit
   - leader election (Redis/Valkey/Postgres leases, Kubernetes Lease, ZooKeeper session-backed)
   - API keys, authentication, and authorization moved to d-core-auth
   - cron tasks (Quartz-backed scheduler)
@@ -83,7 +83,7 @@ And `d-core` provides the infrastructure keys:
 - `:d-core.core.ai/*`
 - `:d-core.core.tracing.http/middleware`
 - `:d-core.core.metrics.prometheus/*`
-- `:d-core.core.rate-limit.*/*`
+- `:d-core.core.rate-limit.*/*` (moved to d-core-rate-limit)
 - `:d-core.core.leader-election.*/*`
 - `:d-core.queue/*`
 
@@ -298,7 +298,7 @@ Metrics (Prometheus registry + dedicated scrape server):
                                           :registry #ig/ref :d-core.core.metrics.prometheus/registry}}}
 ```
 
-Rate limiting (in-memory or distributed):
+Rate limiting (moved to [`d-core-rate-limit`](../d-core-rate-limit)):
 
 ```edn
 {:system

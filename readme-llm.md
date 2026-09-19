@@ -46,9 +46,10 @@ Use this to translate drawings into concrete D-Core wiring:
 - Geo -> `:d-core.core.geo.tile38/index`.
 - AI generation -> `:d-core.core.ai/common` with
   `:d-core.core.ai.lm-studio.openai/provider`.
-- Rate limiting -> `:d-core.core.rate-limit.sliding-window/limiter` or
-  `:d-core.core.rate-limit.leaky-bucket/limiter` or
-  `:d-core.core.rate-limit.redis/limiter`.
+- Rate limiting -> moved to `d-core-rate-limit`
+  (`:d-core.core.rate-limit.sliding-window/limiter`,
+   `:d-core.core.rate-limit.leaky-bucket/limiter`,
+   `:d-core.core.rate-limit.redis/limiter`).
 - Auth, Authn, Authz & API keys -> moved to `d-core-auth`
   (`:d-core.core.authn.jwt/authenticator`, `:d-core.core.authn.api-key/authenticator`,
    `:d-core.core.authz.scope/authorizer`, `:d-core.core.auth.http/*`,

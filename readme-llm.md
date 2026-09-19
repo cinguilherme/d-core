@@ -30,28 +30,38 @@ Use this to translate drawings into concrete D-Core wiring:
   (see `docs/async_messaging.md`).
 - Dead letters -> `:d-core.core.messaging.dead-letter/*`
   (see `docs/dead_letters.md`).
-- Cache -> `:d-core.core.cache.common/common` plus a backend
-  (`:d-core.core.cache.redis/redis`, `:d-core.core.cache.in-memory/in-memory`,
-   `:d-core.core.cache.local-file/local-file`).
-- Object storage -> `:d-core.core.storage/common` plus backend
-  (`:d-core.core.storage/minio`, `:d-core.core.storage/local-disk`).
-- SQL DB -> `:d-core.core.databases.sql/common` plus backend
-  (`:d-core.core.databases.postgres/db`, `:d-core.core.databases.sqlite/db`).
-- Datomic -> `:d-core.core.databases.datomic/db`.
+- Cache -> moved to `d-core-cache` (`:d-core.core.cache.redis/redis`,
+  `:d-core.core.cache.valkey/valkey`, `:d-core.core.cache.memcached/memcached`,
+  `:d-core.core.cache.local-file/local-file`, `:d-core.core.cache.layered/layered`);
+  in-memory & common in `d-core-std` (`:d-core.core.cache.in-memory/in-memory`,
+  `:d-core.core.cache.common/common`).
+- Object storage -> moved to `d-core-store` (`:d-core.core.storage/common`,
+  `:d-core.core.storage/minio`); local disk in `d-core-std` (`:d-core.core.storage/local-disk`).
+- SQL DB -> moved to `d-core-db` (`:d-core.core.databases.sql/common` plus backend
+  `:d-core.core.databases.postgres/db`, `:d-core.core.databases.sqlite/db`).
+- Datomic -> moved to `d-core-db` (`:d-core.core.databases.datomic/db`).
 - HTTP client -> `:d-core.core.http/client` or `:d-core.core.http/clients`.
 - Search -> `:d-core.core.text-search/common` with
   `:d-core.core.text-search.typesense/engine`.
 - Geo -> `:d-core.core.geo.tile38/index`.
 - AI generation -> `:d-core.core.ai/common` with
   `:d-core.core.ai.lm-studio.openai/provider`.
-- Rate limiting -> `:d-core.core.rate-limit.sliding-window/limiter` or
-  `:d-core.core.rate-limit.leaky-bucket/limiter` or
-  `:d-core.core.rate-limit.redis/limiter`.
-- API key auth -> `:d-core.core.api-keys.postgres/store`,
-  `:d-core.core.authn.api-key/authenticator`,
-  `:d-core.core.auth.api-key/limitations-middleware`.
+- Rate limiting -> moved to `d-core-rate-limit`
+  (`:d-core.core.rate-limit.sliding-window/limiter`,
+   `:d-core.core.rate-limit.leaky-bucket/limiter`,
+   `:d-core.core.rate-limit.redis/limiter`).
+- Auth, Authn, Authz & API keys -> moved to `d-core-auth`
+  (`:d-core.core.authn.jwt/authenticator`, `:d-core.core.authn.api-key/authenticator`,
+   `:d-core.core.authz.scope/authorizer`, `:d-core.core.auth.http/*`,
+   `:d-core.core.api-keys.postgres/store`).
+- Leader election -> moved to `d-core-leader-election`
+  (`:d-core.core.leader-election.redis/redis`,
+   `:d-core.core.leader-election.valkey/valkey`,
+   `:d-core.core.leader-election.postgres/postgres`,
+   `:d-core.core.leader-election.kubernetes-lease/kubernetes-lease`,
+   `:d-core.core.leader-election.zookeeper/zookeeper`).
 - Cron jobs -> `:d-core.libs.cron-task/scheduler` (see `docs/cron_task.md`).
-- Metrics -> `:d-core.core.metrics.prometheus/*`.
+- Metrics -> moved to `d-core-metrics` (`:d-core.core.metrics.prometheus/*`).
 - Dev/test queues -> `:d-core.queue/in-memory-queue` or
   `:d-core.queue/in-memory-queues`.
 
@@ -125,6 +135,7 @@ protocols:
 - Storage: `d-core.core.storage.protocol/StorageProtocol`
   - Storage operations: `storage-get`, `storage-put`, `storage-delete`, `storage-get-bytes`, `storage-put-bytes`, `storage-head`, `storage-list`
 - Rate limit: `d-core.core.rate-limit.protocol/RateLimitProtocol`
+- Leader election: `d-core.core.leader-election.protocol/LeaderElectionProtocol`
 - API keys: `d-core.core.api-keys.protocol/ApiKeyStore`
 - Metrics: `d-core.core.metrics.protocol/MetricsProtocol`
 - Text search: `d-core.core.text-search.protocol/*`

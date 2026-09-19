@@ -71,28 +71,34 @@ This page tracks what D-Core currently supports, what is planned, and what is ex
 - Context helpers (`d-core.tracing`)
 - Ring middleware (`:d-core.core.tracing.http/middleware`)
 
-### Authentication and Authorization
+### Authentication and Authorization (Moved to `d-core-auth`)
 
+Moved to standalone library [`d-core-auth`](../../d-core-auth).
 - JWT/OIDC authenticator (`:d-core.core.authn.jwt/authenticator`)
 - API key authenticator (`:d-core.core.authn.api-key/authenticator`)
 - Authenticator chain (`:d-core.core.authn.chain/authenticator`)
+- In-memory authenticator (`:d-core.core.authn.in-memory/authenticator`)
 - Scope-based authorizer (`:d-core.core.authz.scope/authorizer`)
+- Allow-all authorizer (`:d-core.core.authz.allow-all/authorizer`)
 - Ring middleware (`:d-core.core.auth.http/*`)
+- Reitit/Sieppari interceptors (`:d-core.core.auth.interceptor/*`)
 - API key limitations middleware (`:d-core.core.auth.api-key/limitations-middleware`)
 - Token client helpers (`:d-core.core.auth/token-client`)
 
-### Rate Limiting
+### Rate Limiting (Moved to `d-core-rate-limit`)
 
+Moved to standalone library [`d-core-rate-limit`](../../d-core-rate-limit).
 - In-memory sliding window (`:d-core.core.rate-limit.sliding-window/limiter`)
 - In-memory leaky bucket (`:d-core.core.rate-limit.leaky-bucket/limiter`)
 - Redis fixed-window limiter (`:d-core.core.rate-limit.redis/limiter`)
 
-### API Keys
+### API Keys (Moved to `d-core-auth`)
 
+Moved to standalone library [`d-core-auth`](../../d-core-auth).
 - API key protocol (`d-core.core.api-keys.protocol/ApiKeyStore`)
 - Postgres backend (`:d-core.core.api-keys.postgres/store`)
+- In-memory backend (`:d-core.core.api-keys.in-memory/store`)
 - Per-key fixed-window rate limiting via `RateLimitProtocol`
-  (recommended: `:d-core.core.rate-limit.redis/limiter`)
 - Per-key method/path/IP limitation checks (middleware-driven)
 
 ### GraphQL
@@ -105,9 +111,18 @@ This page tracks what D-Core currently supports, what is planned, and what is ex
 
 - Cron tasks (Quartz-backed scheduler component)
 
-### Coordination
+### Metrics (Moved to `d-core-metrics`)
 
-- Leader election protocol (`d-core.core.leader-election.protocol/LeaderElectionProtocol`)
+Moved to standalone library [`d-core-metrics`](../../d-core-metrics).
+- Metrics protocol (`d-core.core.metrics.protocol/MetricsProtocol` in `d-core-std`)
+- Prometheus registry (`:d-core.core.metrics.prometheus/registry`)
+- Prometheus metrics provider (`:d-core.core.metrics.prometheus/metrics`)
+- HTTP scrape server (`:d-core.core.metrics.prometheus/server`)
+
+### Coordination (Moved to `d-core-leader-election`)
+
+Moved to standalone library [`d-core-leader-election`](../../d-core-leader-election).
+- Leader election protocol (`d-core.core.leader-election.protocol/LeaderElectionProtocol` in `d-core-std`)
 - Redis-backed leader election (`:d-core.core.leader-election.redis/redis`)
 - Valkey-backed leader election (`:d-core.core.leader-election.valkey/valkey`)
 - Postgres-backed leader election (`:d-core.core.leader-election.postgres/postgres`)

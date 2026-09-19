@@ -20,19 +20,19 @@ For `StorageProtocol`, the core operations are:
 
 - **Integrant components** for common app infrastructure:
   - messaging (routing, producers/consumers, codecs, dead-letter)
- - cache (in-memory + local-file + redis/valkey/memcached-backed)
-  - storage (local-disk + minio/s3-style)
+  - cache (in-memory & common in d-core-std; redis/valkey/memcached/local-file/layered moved to d-core-cache)
+  - storage (local-disk via d-core-std; object storage moved to d-core-store)
   - cryptography (simple AES + storage-backed key material)
-  - clients (redis/valkey, memcached, sqs, kafka, jetstream/nats, sqlite/postgres, kubernetes, zookeeper, datomic (Work in Progress), typesense, rabbitmq, temporal)
+  - clients (redis/valkey, memcached via d-core-cache, sqs, kafka, jetstream/nats, sqlite/postgres via d-core-db, kubernetes & zookeeper via d-core-leader-election, datomic via d-core-db, typesense, rabbitmq, temporal)
   - http client (policy wrapper: rate-limit, bulkhead, circuit breaker, retries)
   - geocoding (protocol + Nominatim + cached wrapper)
   - routing and matrix (protocol + OSRM + Valhalla)
   - AI generation (provider-neutral protocol + LM Studio OpenAI-compatible adapter)
   - graphql server (Lacinia + optional GraphiQL + subscriptions)
-  - metrics (Prometheus registry + scrape server)
-  - rate limiting (sliding window, leaky bucket, redis fixed-window)
-  - leader election (Redis/Valkey/Postgres leases, Kubernetes Lease, ZooKeeper session-backed)
-  - API keys (protocol + Postgres backend + auth/middleware integration)
+  - metrics (Prometheus registry + scrape server) moved to d-core-metrics
+  - rate limiting (sliding window, leaky bucket, redis fixed-window) moved to d-core-rate-limit
+  - leader election (Redis/Valkey/Postgres leases, Kubernetes Lease, ZooKeeper session-backed) moved to d-core-leader-election
+  - API keys, authentication, and authorization moved to d-core-auth
   - cron tasks (Quartz-backed scheduler)
   - temporal (low-level Java SDK client wrapper)
   - tracing helpers + Ring middleware
@@ -82,9 +82,9 @@ And `d-core` provides the infrastructure keys:
 - `:d-core.core.storage/*`
 - `:d-core.core.ai/*`
 - `:d-core.core.tracing.http/middleware`
-- `:d-core.core.metrics.prometheus/*`
-- `:d-core.core.rate-limit.*/*`
-- `:d-core.core.leader-election.*/*`
+- `:d-core.core.metrics.prometheus/*` (moved to d-core-metrics)
+- `:d-core.core.rate-limit.*/*` (moved to d-core-rate-limit)
+- `:d-core.core.leader-election.*/*` (moved to d-core-leader-election)
 - `:d-core.queue/*`
 
 Example (illustrative):
@@ -110,7 +110,11 @@ Example (illustrative):
 
 ### Cache
 
-All cache backends implement `CacheProtocol` and can be composed. For single-cache routing, use `:d-core.core.cache.common/common`.
+All cache backends implement `CacheProtocol` (defined in [`d-core-std`](../d-core-std)).
+- **In-Memory & Common Cache**: Provided by `d-core-std` (`:d-core.core.cache.in-memory/in-memory`, `:d-core.core.cache.common/common`).
+- **Extended Backends**: Redis, Valkey, Memcached, LocalFile, and Layered cache are provided by [`d-core-cache`](../d-core-cache).
+
+For single-cache routing, use `:d-core.core.cache.common/common`.
 
 #### Local file cache (filesystem-backed)
 
@@ -145,11 +149,8 @@ Example config:
  {:d-core.core.cache.in-memory/in-memory {:logger #ig/ref :duct/logger}
   :d-core.core.clients.redis/client {:uri "redis://localhost:6379"}
   :d-core.core.cache.redis/redis {:redis-client #ig/ref :d-core.core.clients.redis/client}
-  :d-core.core.storage/minio {:endpoint "http://localhost:9000"
-                              :access-key "minio"
-                              :secret-key "minio123"
-                              :bucket "dcore-cache"
-                              :logger #ig/ref :duct/logger}
+  :d-core.core.storage/local-disk {:root-path "/tmp/storage"
+                                   :logger #ig/ref :duct/logger}
 
   :d-core.core.cache.layered/layered
   {:logger #ig/ref :duct/logger
@@ -287,7 +288,7 @@ AI generation (LM Studio OpenAI-compatible):
 See [`docs/ai.md`](./docs/ai.md) for canonical request/response schemas,
 structured output behavior, error categories, and dev playground workflow.
 
-Metrics (Prometheus registry + dedicated scrape server):
+Metrics (moved to [`d-core-metrics`](../d-core-metrics)):
 
 ```edn
 {:system
@@ -297,7 +298,7 @@ Metrics (Prometheus registry + dedicated scrape server):
                                           :registry #ig/ref :d-core.core.metrics.prometheus/registry}}}
 ```
 
-Rate limiting (in-memory or distributed):
+Rate limiting (moved to [`d-core-rate-limit`](../d-core-rate-limit)):
 
 ```edn
 {:system
@@ -312,7 +313,7 @@ Rate limiting (in-memory or distributed):
                                          :window-ms 60000}}}
 ```
 
-Leader election (lease-based singleton coordination):
+Leader election (moved to [`d-core-leader-election`](../d-core-leader-election)):
 
 ```edn
 {:system
@@ -445,9 +446,9 @@ datomic:free://localhost:4334/d-core
 
 See `docs/supported.md`.
 
-### API keys
+### API keys & Authentication
 
-See `docs/api_keys.md`.
+See [`d-core-auth`](../d-core-auth).
 
 ### Dead letters
 

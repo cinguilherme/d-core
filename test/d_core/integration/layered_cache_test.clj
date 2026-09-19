@@ -9,7 +9,7 @@
             [d-core.core.clients.redis]
             [d-core.core.cache.redis]
             [d-core.core.cache.in-memory]
-            [d-core.core.storage.minio]
+            [d-core.core.storage.local-disk]
             [d-core.core.codecs.protocol :as codec]
             [d-core.core.codecs.edn :as edn-codec]
             [d-core.core.codecs.bytes :as bytes-codec]
@@ -28,25 +28,9 @@
   (or (System/getenv "DCORE_REDIS_URI")
       "redis://localhost:6379"))
 
-(defn- minio-endpoint
+(defn- test-storage-path
   []
-  (or (System/getenv "DCORE_MINIO_ENDPOINT")
-      "http://localhost:9000"))
-
-(defn- minio-access-key
-  []
-  (or (System/getenv "DCORE_MINIO_ACCESS_KEY")
-      "minio"))
-
-(defn- minio-secret-key
-  []
-  (or (System/getenv "DCORE_MINIO_SECRET_KEY")
-      "minio123"))
-
-(defn- minio-bucket
-  []
-  (or (System/getenv "DCORE_MINIO_BUCKET")
-      "dcore-cache-test"))
+  (str (System/getProperty "java.io.tmpdir") "/dcore-test-storage-" (UUID/randomUUID)))
 
 (defn- wait-for
   [pred timeout-ms]
@@ -89,32 +73,30 @@
     (edn/read-string payload)))
 
 (defn- init-system
-  [logger]
-  (ig/init {:d-core.core.clients.redis/client {:uri (redis-uri)}
-            :d-core.core.cache.redis/redis {:redis-client (ig/ref :d-core.core.clients.redis/client)}
-            :d-core.core.cache.in-memory/in-memory {:logger logger}
-            :d-core.core.storage/minio {:endpoint (minio-endpoint)
-                                        :access-key (minio-access-key)
-                                        :secret-key (minio-secret-key)
-                                        :bucket (minio-bucket)
-                                        :logger logger}}))
+  ([logger] (init-system logger (test-storage-path)))
+  ([logger storage-path]
+   (ig/init {:d-core.core.clients.redis/client {:uri (redis-uri)}
+             :d-core.core.cache.redis/redis {:redis-client (ig/ref :d-core.core.clients.redis/client)}
+             :d-core.core.cache.in-memory/in-memory {:logger logger}
+             :d-core.core.storage/local-disk {:root-path storage-path
+                                              :logger logger}})))
 
-(defn- minio-source
-  [minio]
-  {:read-fn (fn [key opts] (:value (storage/storage-get minio key opts)))
-   :write-fn (fn [key value opts] (storage/storage-put minio key value opts))
-   :delete-fn (fn [key opts] (storage/storage-delete minio key opts))})
+(defn- storage-source
+  [store]
+  {:read-fn (fn [key opts] (:value (storage/storage-get store key opts)))
+   :write-fn (fn [key value opts] (storage/storage-put store key value opts))
+   :delete-fn (fn [key opts] (storage/storage-delete store key opts))})
 
-(deftest integration-layered-cache-in-memory-redis-minio
-  (testing "Layered cache composes in-memory -> redis -> minio"
+(deftest integration-layered-cache-in-memory-redis-storage
+  (testing "Layered cache composes in-memory -> redis -> local-disk"
     (if-not (integration-enabled?)
       (is true "Skipping layered cache integration test; set INTEGRATION=1")
       (let [logger (:logger (h-logger/make-test-logger))
             system (init-system logger)
             mem (:d-core.core.cache.in-memory/in-memory system)
             redis (:d-core.core.cache.redis/redis system)
-            minio (:d-core.core.storage/minio system)
-            source (minio-source minio)
+            store (:d-core.core.storage/local-disk system)
+            source (storage-source store)
             cache (layered/->LayeredCache [{:id :mem
                                             :cache mem
                                             :ttl-ms 200
@@ -132,7 +114,7 @@
           (p/cache-put cache key1 "v1" nil)
           (is (= "v1" (p/cache-lookup cache key1 nil)))
           (is (= "v1" (p/cache-lookup redis key1 nil)))
-          (is (= "v1" (:value (storage/storage-get minio key1 nil))))
+          (is (= "v1" (:value (storage/storage-get store key1 nil))))
 
           (Thread/sleep 1200)
           (p/cache-delete mem key1 nil) ;; simulate in-memory TTL
@@ -142,7 +124,7 @@
           (finally
             (p/cache-delete mem key1 nil)
             (p/cache-delete redis key1 nil)
-            (storage/storage-delete minio key1 nil)
+            (storage/storage-delete store key1 nil)
             (ig/halt! system)))))))
 
 (deftest integration-layered-cache-write-around
@@ -153,8 +135,8 @@
             system (init-system logger)
             mem (:d-core.core.cache.in-memory/in-memory system)
             redis (:d-core.core.cache.redis/redis system)
-            minio (:d-core.core.storage/minio system)
-            source (minio-source minio)
+            store (:d-core.core.storage/local-disk system)
+            source (storage-source store)
             cache (layered/->LayeredCache [{:id :mem :cache mem :ttl-ms 500 :promote? true}
                                            {:id :redis :cache redis :ttl-ms 500}]
                                           source
@@ -167,13 +149,13 @@
           (p/cache-put cache key1 "v1" nil)
           (is (nil? (p/cache-lookup mem key1 nil)))
           (is (nil? (p/cache-lookup redis key1 nil)))
-          (is (= "v1" (:value (storage/storage-get minio key1 nil))))
+          (is (= "v1" (:value (storage/storage-get store key1 nil))))
           (is (= "v1" (p/cache-lookup cache key1 nil)))
           (is (= "v1" (p/cache-lookup redis key1 nil)))
           (finally
             (p/cache-delete mem key1 nil)
             (p/cache-delete redis key1 nil)
-            (storage/storage-delete minio key1 nil)
+            (storage/storage-delete store key1 nil)
             (ig/halt! system)))))))
 
 (deftest integration-layered-cache-promotes-from-redis
@@ -210,8 +192,8 @@
             system (init-system logger)
             mem (:d-core.core.cache.in-memory/in-memory system)
             redis (:d-core.core.cache.redis/redis system)
-            minio (:d-core.core.storage/minio system)
-            source (minio-source minio)
+            store (:d-core.core.storage/local-disk system)
+            source (storage-source store)
             ttl-ms 200
             cache-write-through (layered/->LayeredCache [{:id :mem :cache mem :ttl-ms ttl-ms :promote? true}
                                                          {:id :redis :cache redis :ttl-ms ttl-ms}]
@@ -222,9 +204,9 @@
             cache-write-around (layered/->LayeredCache [{:id :mem :cache mem :ttl-ms ttl-ms :promote? true}
                                                         {:id :redis :cache redis :ttl-ms ttl-ms}]
                                                        source
-                                                       :write-around
-                                                       ::layered/miss
-                                                       logger)
+                                                        :write-around
+                                                        ::layered/miss
+                                                        logger)
             base-key (str "dcore.int.layered." (UUID/randomUUID))
             key-through (str base-key ":through")
             key-around (str base-key ":around")]
@@ -234,13 +216,13 @@
           (is (= "v-through" (p/cache-lookup redis key-through nil)))
           (Thread/sleep 600)
           (is (wait-for #(nil? (p/cache-lookup redis key-through nil)) 2000))
-          (is (= "v-through" (:value (storage/storage-get minio key-through nil))))
+          (is (= "v-through" (:value (storage/storage-get store key-through nil))))
 
           ;; write-around: no cache write; redis remains empty until read-through
           (p/cache-put cache-write-around key-around "v-around" nil)
           (Thread/sleep 600)
           (is (nil? (p/cache-lookup redis key-around nil)))
-          (is (= "v-around" (:value (storage/storage-get minio key-around nil))))
+          (is (= "v-around" (:value (storage/storage-get store key-around nil))))
           (is (= "v-around" (p/cache-lookup cache-write-around key-around nil)))
           (is (= "v-around" (p/cache-lookup redis key-around nil)))
           (Thread/sleep 600)
@@ -250,8 +232,8 @@
             (p/cache-delete mem key-around nil)
             (p/cache-delete redis key-through nil)
             (p/cache-delete redis key-around nil)
-            (storage/storage-delete minio key-through nil)
-            (storage/storage-delete minio key-around nil)
+            (storage/storage-delete store key-through nil)
+            (storage/storage-delete store key-around nil)
             (ig/halt! system)))))))
 
 (deftest integration-layered-cache-write-back-pending

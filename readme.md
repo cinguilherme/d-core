@@ -21,7 +21,7 @@ For `StorageProtocol`, the core operations are:
 - **Integrant components** for common app infrastructure:
   - messaging (routing, producers/consumers, codecs, dead-letter)
  - cache (in-memory + local-file + redis/valkey/memcached-backed)
-  - storage (local-disk + minio/s3-style)
+  - storage (local-disk via d-core-std; object storage moved to d-core-store)
   - cryptography (simple AES + storage-backed key material)
   - clients (redis/valkey, memcached, sqs, kafka, jetstream/nats, sqlite/postgres, kubernetes, zookeeper, datomic (Work in Progress), typesense, rabbitmq, temporal)
   - http client (policy wrapper: rate-limit, bulkhead, circuit breaker, retries)
@@ -145,11 +145,8 @@ Example config:
  {:d-core.core.cache.in-memory/in-memory {:logger #ig/ref :duct/logger}
   :d-core.core.clients.redis/client {:uri "redis://localhost:6379"}
   :d-core.core.cache.redis/redis {:redis-client #ig/ref :d-core.core.clients.redis/client}
-  :d-core.core.storage/minio {:endpoint "http://localhost:9000"
-                              :access-key "minio"
-                              :secret-key "minio123"
-                              :bucket "dcore-cache"
-                              :logger #ig/ref :duct/logger}
+  :d-core.core.storage/local-disk {:root-path "/tmp/storage"
+                                   :logger #ig/ref :duct/logger}
 
   :d-core.core.cache.layered/layered
   {:logger #ig/ref :duct/logger

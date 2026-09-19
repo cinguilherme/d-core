@@ -33,8 +33,8 @@ Use this to translate drawings into concrete D-Core wiring:
 - Cache -> `:d-core.core.cache.common/common` plus a backend
   (`:d-core.core.cache.redis/redis`, `:d-core.core.cache.in-memory/in-memory`,
    `:d-core.core.cache.local-file/local-file`).
-- Object storage -> `:d-core.core.storage/common` plus backend
-  (`:d-core.core.storage/minio`, `:d-core.core.storage/local-disk`).
+- Object storage -> moved to `d-core-store` (`:d-core.core.storage/common`,
+  `:d-core.core.storage/minio`); local disk in `d-core-std` (`:d-core.core.storage/local-disk`).
 - SQL DB -> `:d-core.core.databases.sql/common` plus backend
   (`:d-core.core.databases.postgres/db`, `:d-core.core.databases.sqlite/db`).
 - Datomic -> `:d-core.core.databases.datomic/db`.

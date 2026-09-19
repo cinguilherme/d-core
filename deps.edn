@@ -38,8 +38,10 @@
         ;; Redis dependencies
         com.taoensso/carmine {:mvn/version "3.4.1"}
         
-        ;; Storage dependencies
+        ;; AWS dependencies (SQS client; Object storage moved to d-core-store)
         amazonica/amazonica {:mvn/version "0.3.165"}
+        
+        ;; Object storage (common, minio, s3, bucket) moved to d-core-store
         
         ;; JSON dependencies
         cheshire/cheshire {:mvn/version "5.13.0"}

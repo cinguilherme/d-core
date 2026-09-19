@@ -56,6 +56,7 @@
         ;; RabbitMQ dependency moved to d-core-async-messaging
 
         ;; Memcached & cache implementations (redis, valkey, memcached, local-file, layered) moved to d-core-cache
+        ;; Auth, Authn, Authz, and API key management moved to d-core-auth
 
         ;; Metrics / Prometheus
         io.prometheus/simpleclient {:mvn/version "0.16.0"}

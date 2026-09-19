@@ -71,13 +71,17 @@ This page tracks what D-Core currently supports, what is planned, and what is ex
 - Context helpers (`d-core.tracing`)
 - Ring middleware (`:d-core.core.tracing.http/middleware`)
 
-### Authentication and Authorization
+### Authentication and Authorization (Moved to `d-core-auth`)
 
+Moved to standalone library [`d-core-auth`](../../d-core-auth).
 - JWT/OIDC authenticator (`:d-core.core.authn.jwt/authenticator`)
 - API key authenticator (`:d-core.core.authn.api-key/authenticator`)
 - Authenticator chain (`:d-core.core.authn.chain/authenticator`)
+- In-memory authenticator (`:d-core.core.authn.in-memory/authenticator`)
 - Scope-based authorizer (`:d-core.core.authz.scope/authorizer`)
+- Allow-all authorizer (`:d-core.core.authz.allow-all/authorizer`)
 - Ring middleware (`:d-core.core.auth.http/*`)
+- Reitit/Sieppari interceptors (`:d-core.core.auth.interceptor/*`)
 - API key limitations middleware (`:d-core.core.auth.api-key/limitations-middleware`)
 - Token client helpers (`:d-core.core.auth/token-client`)
 
@@ -87,12 +91,13 @@ This page tracks what D-Core currently supports, what is planned, and what is ex
 - In-memory leaky bucket (`:d-core.core.rate-limit.leaky-bucket/limiter`)
 - Redis fixed-window limiter (`:d-core.core.rate-limit.redis/limiter`)
 
-### API Keys
+### API Keys (Moved to `d-core-auth`)
 
+Moved to standalone library [`d-core-auth`](../../d-core-auth).
 - API key protocol (`d-core.core.api-keys.protocol/ApiKeyStore`)
 - Postgres backend (`:d-core.core.api-keys.postgres/store`)
+- In-memory backend (`:d-core.core.api-keys.in-memory/store`)
 - Per-key fixed-window rate limiting via `RateLimitProtocol`
-  (recommended: `:d-core.core.rate-limit.redis/limiter`)
 - Per-key method/path/IP limitation checks (middleware-driven)
 
 ### GraphQL

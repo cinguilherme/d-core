@@ -32,7 +32,7 @@ For `StorageProtocol`, the core operations are:
   - metrics (Prometheus registry + scrape server)
   - rate limiting (sliding window, leaky bucket, redis fixed-window)
   - leader election (Redis/Valkey/Postgres leases, Kubernetes Lease, ZooKeeper session-backed)
-  - API keys (protocol + Postgres backend + auth/middleware integration)
+  - API keys, authentication, and authorization moved to d-core-auth
   - cron tasks (Quartz-backed scheduler)
   - temporal (low-level Java SDK client wrapper)
   - tracing helpers + Ring middleware
@@ -446,9 +446,9 @@ datomic:free://localhost:4334/d-core
 
 See `docs/supported.md`.
 
-### API keys
+### API keys & Authentication
 
-See `docs/api_keys.md`.
+See [`d-core-auth`](../d-core-auth).
 
 ### Dead letters
 

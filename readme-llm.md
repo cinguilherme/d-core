@@ -49,9 +49,10 @@ Use this to translate drawings into concrete D-Core wiring:
 - Rate limiting -> `:d-core.core.rate-limit.sliding-window/limiter` or
   `:d-core.core.rate-limit.leaky-bucket/limiter` or
   `:d-core.core.rate-limit.redis/limiter`.
-- API key auth -> `:d-core.core.api-keys.postgres/store`,
-  `:d-core.core.authn.api-key/authenticator`,
-  `:d-core.core.auth.api-key/limitations-middleware`.
+- Auth, Authn, Authz & API keys -> moved to `d-core-auth`
+  (`:d-core.core.authn.jwt/authenticator`, `:d-core.core.authn.api-key/authenticator`,
+   `:d-core.core.authz.scope/authorizer`, `:d-core.core.auth.http/*`,
+   `:d-core.core.api-keys.postgres/store`).
 - Cron jobs -> `:d-core.libs.cron-task/scheduler` (see `docs/cron_task.md`).
 - Metrics -> `:d-core.core.metrics.prometheus/*`.
 - Dev/test queues -> `:d-core.queue/in-memory-queue` or

@@ -111,9 +111,10 @@ Moved to standalone library [`d-core-auth`](../../d-core-auth).
 
 - Cron tasks (Quartz-backed scheduler component)
 
-### Coordination
+### Coordination (Moved to `d-core-leader-election`)
 
-- Leader election protocol (`d-core.core.leader-election.protocol/LeaderElectionProtocol`)
+Moved to standalone library [`d-core-leader-election`](../../d-core-leader-election).
+- Leader election protocol (`d-core.core.leader-election.protocol/LeaderElectionProtocol` in `d-core-std`)
 - Redis-backed leader election (`:d-core.core.leader-election.redis/redis`)
 - Valkey-backed leader election (`:d-core.core.leader-election.valkey/valkey`)
 - Postgres-backed leader election (`:d-core.core.leader-election.postgres/postgres`)

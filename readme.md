@@ -23,7 +23,7 @@ For `StorageProtocol`, the core operations are:
   - cache (in-memory & common in d-core-std; redis/valkey/memcached/local-file/layered moved to d-core-cache)
   - storage (local-disk via d-core-std; object storage moved to d-core-store)
   - cryptography (simple AES + storage-backed key material)
-  - clients (redis/valkey, memcached via d-core-cache, sqs, kafka, jetstream/nats, sqlite/postgres via d-core-db, kubernetes, zookeeper, datomic via d-core-db, typesense, rabbitmq, temporal)
+  - clients (redis/valkey, memcached via d-core-cache, sqs, kafka, jetstream/nats, sqlite/postgres via d-core-db, kubernetes & zookeeper via d-core-leader-election, datomic via d-core-db, typesense, rabbitmq, temporal)
   - http client (policy wrapper: rate-limit, bulkhead, circuit breaker, retries)
   - geocoding (protocol + Nominatim + cached wrapper)
   - routing and matrix (protocol + OSRM + Valhalla)
@@ -31,7 +31,7 @@ For `StorageProtocol`, the core operations are:
   - graphql server (Lacinia + optional GraphiQL + subscriptions)
   - metrics (Prometheus registry + scrape server)
   - rate limiting (sliding window, leaky bucket, redis fixed-window) moved to d-core-rate-limit
-  - leader election (Redis/Valkey/Postgres leases, Kubernetes Lease, ZooKeeper session-backed)
+  - leader election (Redis/Valkey/Postgres leases, Kubernetes Lease, ZooKeeper session-backed) moved to d-core-leader-election
   - API keys, authentication, and authorization moved to d-core-auth
   - cron tasks (Quartz-backed scheduler)
   - temporal (low-level Java SDK client wrapper)
@@ -84,7 +84,7 @@ And `d-core` provides the infrastructure keys:
 - `:d-core.core.tracing.http/middleware`
 - `:d-core.core.metrics.prometheus/*`
 - `:d-core.core.rate-limit.*/*` (moved to d-core-rate-limit)
-- `:d-core.core.leader-election.*/*`
+- `:d-core.core.leader-election.*/*` (moved to d-core-leader-election)
 - `:d-core.queue/*`
 
 Example (illustrative):
@@ -313,7 +313,7 @@ Rate limiting (moved to [`d-core-rate-limit`](../d-core-rate-limit)):
                                          :window-ms 60000}}}
 ```
 
-Leader election (lease-based singleton coordination):
+Leader election (moved to [`d-core-leader-election`](../d-core-leader-election)):
 
 ```edn
 {:system

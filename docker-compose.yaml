@@ -27,14 +27,6 @@ services:
     volumes:
       - valkey_data:/data
 
-  zookeeper:
-    image: zookeeper:3.9
-    ports:
-      - 2181:2181
-    volumes:
-      - zookeeper_data:/data
-      - zookeeper_datalog:/datalog
-
   temporal:
     image: temporalio/temporal
     ports:
@@ -285,8 +277,6 @@ volumes:
   postgres_data:
   redis_data:
   valkey_data:
-  zookeeper_data:
-  zookeeper_datalog:
   temporal_data:
   minio_data:
   typesense_data:

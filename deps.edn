@@ -42,8 +42,7 @@
         ;; Temporal workflow orchestration
         io.temporal/temporal-sdk {:mvn/version "1.33.0"}
 
-        ;; ZooKeeper / Curator
-        org.apache.curator/curator-framework {:mvn/version "5.9.0"}
+        ;; ZooKeeper / Curator dependency moved to d-core-leader-election
 
         ;; WebSocket / async server (Aleph + Manifold)
         aleph/aleph {:mvn/version "0.9.3"}
@@ -58,6 +57,7 @@
         ;; Memcached & cache implementations (redis, valkey, memcached, local-file, layered) moved to d-core-cache
         ;; Auth, Authn, Authz, and API key management moved to d-core-auth
         ;; Rate limiting implementations (sliding-window, leaky-bucket, redis) moved to d-core-rate-limit
+        ;; Leader election (redis, valkey, postgres, kubernetes-lease, zookeeper) moved to d-core-leader-election
 
         ;; Metrics / Prometheus
         io.prometheus/simpleclient {:mvn/version "0.16.0"}

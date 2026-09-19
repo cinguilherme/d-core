@@ -54,6 +54,12 @@ Use this to translate drawings into concrete D-Core wiring:
   (`:d-core.core.authn.jwt/authenticator`, `:d-core.core.authn.api-key/authenticator`,
    `:d-core.core.authz.scope/authorizer`, `:d-core.core.auth.http/*`,
    `:d-core.core.api-keys.postgres/store`).
+- Leader election -> moved to `d-core-leader-election`
+  (`:d-core.core.leader-election.redis/redis`,
+   `:d-core.core.leader-election.valkey/valkey`,
+   `:d-core.core.leader-election.postgres/postgres`,
+   `:d-core.core.leader-election.kubernetes-lease/kubernetes-lease`,
+   `:d-core.core.leader-election.zookeeper/zookeeper`).
 - Cron jobs -> `:d-core.libs.cron-task/scheduler` (see `docs/cron_task.md`).
 - Metrics -> `:d-core.core.metrics.prometheus/*`.
 - Dev/test queues -> `:d-core.queue/in-memory-queue` or
@@ -129,6 +135,7 @@ protocols:
 - Storage: `d-core.core.storage.protocol/StorageProtocol`
   - Storage operations: `storage-get`, `storage-put`, `storage-delete`, `storage-get-bytes`, `storage-put-bytes`, `storage-head`, `storage-list`
 - Rate limit: `d-core.core.rate-limit.protocol/RateLimitProtocol`
+- Leader election: `d-core.core.leader-election.protocol/LeaderElectionProtocol`
 - API keys: `d-core.core.api-keys.protocol/ApiKeyStore`
 - Metrics: `d-core.core.metrics.protocol/MetricsProtocol`
 - Text search: `d-core.core.text-search.protocol/*`

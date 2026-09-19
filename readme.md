@@ -33,7 +33,7 @@ For `StorageProtocol`, the core operations are:
   - rate limiting (sliding window, leaky bucket, redis fixed-window) moved to d-core-rate-limit
   - leader election (Redis/Valkey/Postgres leases, Kubernetes Lease, ZooKeeper session-backed) moved to d-core-leader-election
   - API keys, authentication, and authorization moved to d-core-auth
-  - cron tasks (Quartz-backed scheduler)
+  - cron tasks (Quartz-backed scheduler) moved to d-core-cron
   - temporal (low-level Java SDK client wrapper)
   - tracing helpers + Ring middleware
   - simple in-memory queues for local/dev and testing
@@ -381,34 +381,8 @@ Notes:
 
 See [`docs/leader_election.md`](./docs/leader_election.md) for the full contract, config options, and backend notes.
 
-Cron tasks (Quartz-backed scheduler):
-
-```edn
-{:system
- {:d-core.libs.cron-task/scheduler
-  {:handlers {:cleanup #ig/ref :my-app.handlers/cleanup
-              :sync #ig/ref :my-app.handlers/sync}
-   :deps {:db #ig/ref :d-core.core.clients/postgres/client}
-   :tasks {:cleanup {:cron "0 0 * * * ?"
-                     :handler :cleanup
-                     :payload {:limit 100}
-                     :timezone "UTC"
-                     :enabled true}
-           :sync {:cron "0 */5 * * * ?"
-                  :handler :sync
-                  :payload {:scope :daily}}}
-   :sync-mode :replace
-   :start? true}}}
-```
-
-Handler contract (each run receives a context map):
-
-```clj
-(defn cleanup-handler
-  [{:keys [task-id payload deps fire-time]}]
-  (let [{:keys [db]} deps]
-    {:task task-id :ran-at fire-time :payload payload}))
-```
+Cron tasks (Quartz-backed scheduler): moved to standalone library [`d-core-cron`](../d-core-cron).
+See [`d-core-cron/docs/cron_task.md`](../d-core-cron/docs/cron_task.md) for full configuration and runtime API details.
 
 #### Datomic (local transactor)
 

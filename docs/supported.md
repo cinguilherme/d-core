@@ -107,9 +107,11 @@ Moved to standalone library [`d-core-auth`](../../d-core-auth).
 - GraphiQL endpoint (optional)
 - Subscriptions via graphql-transport-ws (optional)
 
-### Scheduling
+### Scheduling (Moved to `d-core-cron`)
 
-- Cron tasks (Quartz-backed scheduler component)
+Moved to standalone library [`d-core-cron`](../../d-core-cron).
+- Cron tasks (Quartz-backed scheduler component `:d-core.libs.cron-task/scheduler`)
+- Runtime task ops (`upsert-task!`, `delete-task!`, `pause-task!`, `resume-task!`, `sync-tasks!`)
 
 ### Metrics (Moved to `d-core-metrics`)
 

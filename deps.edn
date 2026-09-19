@@ -36,8 +36,7 @@
         ;; HTTP dependencies
         clj-http/clj-http {:mvn/version "3.12.3"}
 
-        ;; Scheduling / Quartz (also used by d-core.libs.cron-task)
-        org.quartz-scheduler/quartz {:mvn/version "2.3.2"}
+        ;; Scheduling / Quartz (d-core.libs.cron-task) moved to d-core-cron
 
         ;; Temporal workflow orchestration
         io.temporal/temporal-sdk {:mvn/version "1.33.0"}

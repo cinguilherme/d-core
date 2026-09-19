@@ -60,7 +60,7 @@ Use this to translate drawings into concrete D-Core wiring:
    `:d-core.core.leader-election.postgres/postgres`,
    `:d-core.core.leader-election.kubernetes-lease/kubernetes-lease`,
    `:d-core.core.leader-election.zookeeper/zookeeper`).
-- Cron jobs -> `:d-core.libs.cron-task/scheduler` (see `docs/cron_task.md`).
+- Cron jobs -> moved to `d-core-cron` (`:d-core.libs.cron-task/scheduler`).
 - Metrics -> moved to `d-core-metrics` (`:d-core.core.metrics.prometheus/*`).
 - Dev/test queues -> `:d-core.queue/in-memory-queue` or
   `:d-core.queue/in-memory-queues`.
@@ -114,7 +114,7 @@ HTTP clients are config-only and easy to swap per environment:
                          :retry {:max-attempts 3}}}}}}
 ```
 
-Cron tasks are dispatch-only; business logic stays in your handlers:
+Cron tasks are dispatch-only; moved to `d-core-cron` (`:d-core.libs.cron-task/scheduler`):
 
 ```edn
 {:system

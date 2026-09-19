@@ -20,12 +20,11 @@ consistent across the system and to make time data easy to serialize.
 
 See `docs/time.md` for usage and configuration.
 
-### Cron Tasks
+### Cron Tasks (moved to `d-core-cron`)
 
 Cron Tasks provides a Quartz-backed scheduler component for config-defined
 cron jobs that dispatch into handler functions with injected components.
-
-See `docs/cron_task.md` for usage and configuration.
+This capability has been extracted to the standalone `d-core-cron` library.
 
 ### Workers (experimental)
 

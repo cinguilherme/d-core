@@ -61,7 +61,7 @@ Use this to translate drawings into concrete D-Core wiring:
    `:d-core.core.leader-election.kubernetes-lease/kubernetes-lease`,
    `:d-core.core.leader-election.zookeeper/zookeeper`).
 - Cron jobs -> `:d-core.libs.cron-task/scheduler` (see `docs/cron_task.md`).
-- Metrics -> `:d-core.core.metrics.prometheus/*`.
+- Metrics -> moved to `d-core-metrics` (`:d-core.core.metrics.prometheus/*`).
 - Dev/test queues -> `:d-core.queue/in-memory-queue` or
   `:d-core.queue/in-memory-queues`.
 

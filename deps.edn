@@ -59,11 +59,7 @@
         ;; Rate limiting implementations (sliding-window, leaky-bucket, redis) moved to d-core-rate-limit
         ;; Leader election (redis, valkey, postgres, kubernetes-lease, zookeeper) moved to d-core-leader-election
 
-        ;; Metrics / Prometheus
-        io.prometheus/simpleclient {:mvn/version "0.16.0"}
-        io.prometheus/simpleclient_common {:mvn/version "0.16.0"}
-        io.prometheus/simpleclient_hotspot {:mvn/version "0.16.0"}
-        io.prometheus/simpleclient_httpserver {:mvn/version "0.16.0"}
+        ;; Metrics (Prometheus registry, metrics provider, scrape server) moved to d-core-metrics
 }
 
  :aliases

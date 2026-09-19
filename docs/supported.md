@@ -111,6 +111,14 @@ Moved to standalone library [`d-core-auth`](../../d-core-auth).
 
 - Cron tasks (Quartz-backed scheduler component)
 
+### Metrics (Moved to `d-core-metrics`)
+
+Moved to standalone library [`d-core-metrics`](../../d-core-metrics).
+- Metrics protocol (`d-core.core.metrics.protocol/MetricsProtocol` in `d-core-std`)
+- Prometheus registry (`:d-core.core.metrics.prometheus/registry`)
+- Prometheus metrics provider (`:d-core.core.metrics.prometheus/metrics`)
+- HTTP scrape server (`:d-core.core.metrics.prometheus/server`)
+
 ### Coordination (Moved to `d-core-leader-election`)
 
 Moved to standalone library [`d-core-leader-election`](../../d-core-leader-election).

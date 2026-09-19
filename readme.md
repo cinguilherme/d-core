@@ -29,7 +29,7 @@ For `StorageProtocol`, the core operations are:
   - routing and matrix (protocol + OSRM + Valhalla)
   - AI generation (provider-neutral protocol + LM Studio OpenAI-compatible adapter)
   - graphql server (Lacinia + optional GraphiQL + subscriptions)
-  - metrics (Prometheus registry + scrape server)
+  - metrics (Prometheus registry + scrape server) moved to d-core-metrics
   - rate limiting (sliding window, leaky bucket, redis fixed-window) moved to d-core-rate-limit
   - leader election (Redis/Valkey/Postgres leases, Kubernetes Lease, ZooKeeper session-backed) moved to d-core-leader-election
   - API keys, authentication, and authorization moved to d-core-auth
@@ -82,7 +82,7 @@ And `d-core` provides the infrastructure keys:
 - `:d-core.core.storage/*`
 - `:d-core.core.ai/*`
 - `:d-core.core.tracing.http/middleware`
-- `:d-core.core.metrics.prometheus/*`
+- `:d-core.core.metrics.prometheus/*` (moved to d-core-metrics)
 - `:d-core.core.rate-limit.*/*` (moved to d-core-rate-limit)
 - `:d-core.core.leader-election.*/*` (moved to d-core-leader-election)
 - `:d-core.queue/*`
@@ -288,7 +288,7 @@ AI generation (LM Studio OpenAI-compatible):
 See [`docs/ai.md`](./docs/ai.md) for canonical request/response schemas,
 structured output behavior, error categories, and dev playground workflow.
 
-Metrics (Prometheus registry + dedicated scrape server):
+Metrics (moved to [`d-core-metrics`](../d-core-metrics)):
 
 ```edn
 {:system

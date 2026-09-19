@@ -67,10 +67,11 @@ Moved to standalone library [`d-core-http`](../../d-core-http).
 - OSRM router (`:d-core.core.routing.osrm/router`)
 - Valhalla router (`:d-core.core.routing.valhalla/router`)
 
-### AI Generation
+### AI Generation (Moved to `d-core-ai`)
 
-- Generation protocol (`d-core.core.ai.protocol/GenerationProtocol`)
-- Capabilities protocol (`d-core.core.ai.protocol/ModelCapabilitiesProtocol`)
+Moved to standalone library [`d-core-ai`](../../d-core-ai).
+- Generation protocol (`d-core.core.ai.protocol/GenerationProtocol` in `d-core-std`)
+- Capabilities protocol (`d-core.core.ai.protocol/ModelCapabilitiesProtocol` in `d-core-std`)
 - LM Studio OpenAI-compatible provider (`:d-core.core.ai.lm-studio.openai/provider`)
 - Common AI delegator (`:d-core.core.ai/common`)
 - Text generation + structured JSON output + vision input (`image->text`)

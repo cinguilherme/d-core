@@ -44,8 +44,8 @@ Use this to translate drawings into concrete D-Core wiring:
 - Search -> `:d-core.core.text-search/common` with
   `:d-core.core.text-search.typesense/engine`.
 - Geo -> `:d-core.core.geo.tile38/index`.
-- AI generation -> `:d-core.core.ai/common` with
-  `:d-core.core.ai.lm-studio.openai/provider`.
+- AI generation -> moved to `d-core-ai` (`:d-core.core.ai/common` with
+  `:d-core.core.ai.lm-studio.openai/provider`).
 - Rate limiting -> moved to `d-core-rate-limit`
   (`:d-core.core.rate-limit.sliding-window/limiter`,
    `:d-core.core.rate-limit.leaky-bucket/limiter`,

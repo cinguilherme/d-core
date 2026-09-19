@@ -27,7 +27,7 @@ For `StorageProtocol`, the core operations are:
   - http client (policy wrapper: rate-limit, bulkhead, circuit breaker, retries) moved to d-core-http
   - geocoding (protocol + Nominatim + cached wrapper)
   - routing and matrix (protocol + OSRM + Valhalla)
-  - AI generation (provider-neutral protocol + LM Studio OpenAI-compatible adapter)
+  - AI generation (provider-neutral protocol + LM Studio OpenAI-compatible adapter) moved to d-core-ai
   - graphql server (Lacinia + optional GraphiQL + subscriptions)
   - metrics (Prometheus registry + scrape server) moved to d-core-metrics
   - rate limiting (sliding window, leaky bucket, redis fixed-window) moved to d-core-rate-limit
@@ -253,7 +253,7 @@ defaults. The local compose setup also includes `tileserver` (port `8089`) and
 an on-demand `tilebuilder` profile to generate Monaco MBTiles for map
 visualization.
 
-AI generation (LM Studio OpenAI-compatible):
+AI generation (moved to [`d-core-ai`](../d-core-ai)):
 
 ```edn
 {:system
@@ -273,7 +273,7 @@ AI generation (LM Studio OpenAI-compatible):
    :providers {:lm-studio-openai #ig/ref :d-core.core.ai.lm-studio.openai/provider}}}}
 ```
 
-See [`docs/ai.md`](./docs/ai.md) for canonical request/response schemas,
+See [`../d-core-ai/docs/ai.md`](../d-core-ai/docs/ai.md) for canonical request/response schemas,
 structured output behavior, error categories, and dev playground workflow.
 
 Metrics (moved to [`d-core-metrics`](../d-core-metrics)):

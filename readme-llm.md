@@ -40,7 +40,7 @@ Use this to translate drawings into concrete D-Core wiring:
 - SQL DB -> moved to `d-core-db` (`:d-core.core.databases.sql/common` plus backend
   `:d-core.core.databases.postgres/db`, `:d-core.core.databases.sqlite/db`).
 - Datomic -> moved to `d-core-db` (`:d-core.core.databases.datomic/db`).
-- HTTP client -> `:d-core.core.http/client` or `:d-core.core.http/clients`.
+- HTTP client -> moved to `d-core-http` (`:d-core.core.http/client` or `:d-core.core.http/clients`).
 - Search -> `:d-core.core.text-search/common` with
   `:d-core.core.text-search.typesense/engine`.
 - Geo -> `:d-core.core.geo.tile38/index`.

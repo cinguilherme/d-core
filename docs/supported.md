@@ -44,7 +44,16 @@ This page tracks what D-Core currently supports, what is planned, and what is ex
 - Datomic
 - Typesense
 - Temporal (low-level Java SDK client wrapper)
-- HTTP (policy wrapper: rate-limit, bulkhead, circuit breaker, retries)
+- HTTP (policy wrapper: rate-limit, bulkhead, circuit breaker, retries; moved to d-core-http)
+
+### HTTP Client (Moved to `d-core-http`)
+
+Moved to standalone library [`d-core-http`](../../d-core-http).
+- Policy wrapper (`:d-core.core.http/client`, `:d-core.core.http/clients`)
+- Rate limiting (token bucket)
+- Bulkhead (semaphore concurrency limiter)
+- Circuit breaker (sliding window failure state machine)
+- Retries (exponential backoff with jitter)
 
 ### Geocoding
 

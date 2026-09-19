@@ -24,7 +24,7 @@ For `StorageProtocol`, the core operations are:
   - storage (local-disk via d-core-std; object storage moved to d-core-store)
   - cryptography (simple AES + storage-backed key material)
   - clients (redis/valkey, memcached via d-core-cache, sqs, kafka, jetstream/nats, sqlite/postgres via d-core-db, kubernetes & zookeeper via d-core-leader-election, datomic via d-core-db, typesense, rabbitmq, temporal)
-  - http client (policy wrapper: rate-limit, bulkhead, circuit breaker, retries)
+  - http client (policy wrapper: rate-limit, bulkhead, circuit breaker, retries) moved to d-core-http
   - geocoding (protocol + Nominatim + cached wrapper)
   - routing and matrix (protocol + OSRM + Valhalla)
   - AI generation (provider-neutral protocol + LM Studio OpenAI-compatible adapter)

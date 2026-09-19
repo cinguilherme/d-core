@@ -1,6 +1,7 @@
 {:deps {;; d-core-std foundation library
-        org.clojars.cinguilherme/d-core-std {:local/root "../d-core-std"}
-        org.clojars.cinguilherme/d-core-db  {:local/root "../d-core-db"}
+        org.clojars.cinguilherme/d-core-std  {:local/root "../d-core-std"}
+        org.clojars.cinguilherme/d-core-db   {:local/root "../d-core-db"}
+        org.clojars.cinguilherme/d-core-http {:local/root "../d-core-http"}
 
         ;; Clojure Core dependencies
         org.clojure/clojure {:mvn/version "1.12.3"}
@@ -33,8 +34,7 @@
         ;; GraphQL (Lacinia)
         com.walmartlabs/lacinia {:mvn/version "1.2.1"}
         
-        ;; HTTP dependencies
-        clj-http/clj-http {:mvn/version "3.12.3"}
+        ;; HTTP client (d-core.core.http, d-core.core.http.client) moved to d-core-http
 
         ;; Scheduling / Quartz (d-core.libs.cron-task) moved to d-core-cron
 

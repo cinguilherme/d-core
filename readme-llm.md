@@ -35,9 +35,9 @@ Use this to translate drawings into concrete D-Core wiring:
    `:d-core.core.cache.local-file/local-file`).
 - Object storage -> moved to `d-core-store` (`:d-core.core.storage/common`,
   `:d-core.core.storage/minio`); local disk in `d-core-std` (`:d-core.core.storage/local-disk`).
-- SQL DB -> `:d-core.core.databases.sql/common` plus backend
-  (`:d-core.core.databases.postgres/db`, `:d-core.core.databases.sqlite/db`).
-- Datomic -> `:d-core.core.databases.datomic/db`.
+- SQL DB -> moved to `d-core-db` (`:d-core.core.databases.sql/common` plus backend
+  `:d-core.core.databases.postgres/db`, `:d-core.core.databases.sqlite/db`).
+- Datomic -> moved to `d-core-db` (`:d-core.core.databases.datomic/db`).
 - HTTP client -> `:d-core.core.http/client` or `:d-core.core.http/clients`.
 - Search -> `:d-core.core.text-search/common` with
   `:d-core.core.text-search.typesense/engine`.

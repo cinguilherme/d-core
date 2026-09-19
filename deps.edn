@@ -1,5 +1,6 @@
 {:deps {;; d-core-std foundation library
         org.clojars.cinguilherme/d-core-std {:local/root "../d-core-std"}
+        org.clojars.cinguilherme/d-core-db  {:local/root "../d-core-db"}
 
         ;; Clojure Core dependencies
         org.clojure/clojure {:mvn/version "1.12.3"}
@@ -8,24 +9,7 @@
         ;; Schema validation / generation
         metosin/malli {:mvn/version "0.20.0"}
         
-        ;; Database dependencies
-        org.clojure/java.jdbc {:mvn/version "0.7.12"}
-        com.github.seancorfield/next.jdbc {:mvn/version "1.3.955"}
-        org.xerial/sqlite-jdbc {:mvn/version "3.45.3.0"}
-        org.postgresql/postgresql {:mvn/version "42.7.4"}
-        com.zaxxer/HikariCP {:mvn/version "5.1.0"}
-        com.h2database/h2 {:mvn/version "1.4.200"}
-        
-        ;; Database Datomic dependencies
-        ;;com.datomic/local {:mvn/version "1.0.291"}
-        com.datomic/peer     {:mvn/version "1.0.7482"}
-        ;;com.datomic/client-cloud {:mvn/version "1.0.131"}
-        ;com.datomic/datomic-pro {:mvn/version "1.0.7482"}
-
-        ;; XTDB dependencies
-        com.xtdb/xtdb-api {:mvn/version "2.1.0"}
-        com.xtdb/xtdb-core {:mvn/version "2.1.0"}
-
+        ;; Database dependencies (SQL, Datomic, XTDB, connection pools) moved to d-core-db
         
         ;; Duct dependencies
         org.duct-framework/main {:mvn/version "0.4.4"}

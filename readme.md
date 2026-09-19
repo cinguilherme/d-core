@@ -179,23 +179,11 @@ Example usage:
 
 ### Cryptography
 
-d-core ships a small `CriptographyProtocol` abstraction with two implementations:
+`CriptographyProtocol` is defined in `d-core-std`. Implementations:
+- `:d-core.core.criptography/simple` in `d-core-std` expects a pre-built `javax.crypto.SecretKey` (useful for tests/local).
+- `:d-core.core.criptography/storage` in standalone library [`d-core-cripto`](../d-core-cripto) loads key material from any `StorageProtocol` backend (local disk, MinIO, S3, etc.) with AES-GCM encryption.
 
-- `:d-core.core.criptography/simple` expects a pre-built `javax.crypto.SecretKey` (useful for tests/local).
-- `:d-core.core.criptography/storage` loads key material from any `StorageProtocol` backend (local disk, MinIO, S3, etc).
-
-Storage-backed crypto uses AES/GCM and expects key material as **base64** by default. The ciphertext is raw bytes with the IV prepended, so for async messaging you will typically wrap it with a codec (base64, hex, etc.) for transport.
-
-Example config (storage-backed):
-
-```edn
-{:system
- {:d-core.core.storage/local-disk {:root-path "storage"}
-  :d-core.core.criptography/storage {:storage #ig/ref :d-core.core.storage/local-disk
-                                     :key-path "keys/app.key"
-                                     :encoding :base64 ;; or :utf8 if you store raw bytes as string
-                                     :algorithm "AES"}}}
-```
+See [`d-core-cripto/docs/criptography.md`](../d-core-cripto/docs/criptography.md) for full configuration and usage details.
 
 Example usage:
 
